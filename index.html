@@ -1140,38 +1140,53 @@ const PATTERNS = {
 
 const patternKeys = Object.keys(PATTERNS);
 
-function initPattern(patternKey, reinit = true) {
+// Use a fixed element count for smooth transitions
+const FIXED_ELEMENT_COUNT = 2000;
+
+function initPattern(patternKey) {
     const pattern = PATTERNS[patternKey];
-    if (reinit || elements.length !== pattern.elementCount) {
-        createElements(pattern.elementCount);
+    // Always use fixed count for consistency
+    if (elements.length !== FIXED_ELEMENT_COUNT) {
+        createElements(FIXED_ELEMENT_COUNT);
     }
     elements.forEach(el => {
-        el.prevData = { ...el.data };
-        pattern.init(el, pattern.elementCount);
+        pattern.init(el, FIXED_ELEMENT_COUNT);
     });
 }
 
 function switchPattern(index, smooth = true) {
     const newIndex = ((index % patternKeys.length) + patternKeys.length) % patternKeys.length;
     
-    if (smooth && currentPatternIndex !== newIndex) {
-        // Store current positions for tweening
+    if (newIndex === currentPatternIndex) return;
+    
+    if (smooth) {
+        // Capture current positions BEFORE changing anything
         const currentPattern = PATTERNS[patternKeys[currentPatternIndex]];
         const t = performance.now() / 1000 * CONFIG.TIME_SCALE;
         
         elements.forEach((el, i) => {
-            const pos = currentPattern.update(el, t, elements.length, CONFIG);
-            el.prevPos = { ...pos };
+            const pos = currentPattern.update(el, t, FIXED_ELEMENT_COUNT, CONFIG);
+            el.prevPos = { 
+                x: pos.x, 
+                y: pos.y, 
+                rotation: pos.rotation, 
+                scale: pos.scale 
+            };
         });
         
-        previousPatternIndex = currentPatternIndex;
         transitionProgress = 0;
         transitionStartTime = performance.now() / 1000;
     }
     
     currentPatternIndex = newIndex;
-    initPattern(patternKeys[currentPatternIndex], !smooth);
-    showPatternName(PATTERNS[patternKeys[currentPatternIndex]].name);
+    
+    // Initialize new pattern data but keep prevPos
+    const newPattern = PATTERNS[patternKeys[currentPatternIndex]];
+    elements.forEach(el => {
+        newPattern.init(el, FIXED_ELEMENT_COUNT);
+    });
+    
+    showPatternName(newPattern.name);
 }
 
 function nextPattern() {
@@ -1266,6 +1281,8 @@ function getMouseInfluence(posX, posY) {
 }
 
 // Main render loop
+const BASE_SIZE = 28; // Fixed base size for all patterns
+
 function render(timestamp) {
     const t = (timestamp / 1000) * CONFIG.TIME_SCALE;
     
@@ -1280,7 +1297,7 @@ function render(timestamp) {
     ctx.clearRect(0, 0, width, height);
     
     const pattern = PATTERNS[patternKeys[currentPatternIndex]];
-    const count = elements.length;
+    const count = FIXED_ELEMENT_COUNT;
     const basePulse = 1 + sin(t * CONFIG.VISUAL.PULSE_SPEED) * CONFIG.VISUAL.PULSE_AMOUNT;
     const globalTwinkle = sin(t * CONFIG.VISUAL.TWINKLE_SPEED * 0.5) * 0.5 + 0.5;
     
@@ -1357,7 +1374,7 @@ function render(timestamp) {
         drawTriangle(
             pos.x * width,
             pos.y * height,
-            pattern.baseSize * finalScale * scale,
+            BASE_SIZE * finalScale * scale,
             pos.rotation * PI / 180,
             hue,
             alpha
