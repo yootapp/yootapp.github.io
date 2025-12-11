@@ -1167,7 +1167,9 @@ document.addEventListener('keydown', (e) => {
 });
 
 // Initialize
-initPattern(patternKeys[0]);
+initPattern('storm');
+currentPatternIndex = patternKeys.indexOf('storm');
+
 requestAnimationFrame(render);
 console.log("✨ Visualizer ready! Space=next, W=wildcard, H=hide UI, A=auto-cycle, Click=SAT2");
     </script>
