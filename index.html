@@ -181,12 +181,6 @@ const ctx = mainCanvas.getContext('2d');
 
 let width, height, minDim, scale;
 
-// Load triangle image
-const triangleImg = new Image();
-triangleImg.src = TRIANGLE_PNG;
-let triangleLoaded = false;
-triangleImg.onload = () => { triangleLoaded = true; };
-
 function resize() {
     const dpr = min(window.devicePixelRatio || 1, 2);
     width = window.innerWidth;
@@ -325,46 +319,92 @@ document.addEventListener('touchend', () => {
 // SAT2 Text Formation System
 let textFormationActive = false;
 let textFormationStart = 0;
-const TEXT_FORMATION_DURATION = 2.5;
-const TEXT_HOLD_DURATION = 1.5;
+const TEXT_FORMATION_DURATION = 2.0;
+const TEXT_HOLD_DURATION = 2.0;
 const TEXT_RELEASE_DURATION = 2.0;
 
-function generateTextPoints(text, numPoints) {
+function generateTextAndArrowPoints(numPoints) {
     const points = [];
     const tempCanvas = document.createElement('canvas');
     const tempCtx = tempCanvas.getContext('2d');
-    const fontSize = 200;
-    tempCanvas.width = 800;
-    tempCanvas.height = 300;
+    tempCanvas.width = 1000;
+    tempCanvas.height = 500;
     
+    // Draw SAT2 text - BIGGER
+    const fontSize = 280;
     tempCtx.fillStyle = '#fff';
     tempCtx.font = `bold ${fontSize}px "Outfit", sans-serif`;
     tempCtx.textAlign = 'center';
     tempCtx.textBaseline = 'middle';
-    tempCtx.fillText(text, tempCanvas.width / 2, tempCanvas.height / 2);
+    tempCtx.fillText('SAT2', tempCanvas.width / 2, tempCanvas.height * 0.38);
+    
+    // Draw Amazon-style smile arrow underneath
+    tempCtx.beginPath();
+    tempCtx.lineWidth = 28;
+    tempCtx.lineCap = 'round';
+    tempCtx.strokeStyle = '#fff';
+    
+    // Curved smile - bezier curve
+    const arrowStartX = tempCanvas.width * 0.18;
+    const arrowEndX = tempCanvas.width * 0.82;
+    const arrowY = tempCanvas.height * 0.72;
+    const curveDepth = 60;
+    
+    tempCtx.moveTo(arrowStartX, arrowY - curveDepth * 0.3);
+    tempCtx.quadraticCurveTo(
+        tempCanvas.width * 0.5, arrowY + curveDepth,
+        arrowEndX, arrowY - curveDepth * 0.5
+    );
+    tempCtx.stroke();
+    
+    // Arrow head
+    const arrowHeadSize = 45;
+    const arrowAngle = -0.6; // Angle pointing up-right
+    tempCtx.beginPath();
+    tempCtx.moveTo(arrowEndX, arrowY - curveDepth * 0.5);
+    tempCtx.lineTo(
+        arrowEndX - arrowHeadSize * cos(arrowAngle - 0.5),
+        arrowY - curveDepth * 0.5 - arrowHeadSize * sin(arrowAngle - 0.5)
+    );
+    tempCtx.moveTo(arrowEndX, arrowY - curveDepth * 0.5);
+    tempCtx.lineTo(
+        arrowEndX - arrowHeadSize * cos(arrowAngle + 0.7),
+        arrowY - curveDepth * 0.5 - arrowHeadSize * sin(arrowAngle + 0.7)
+    );
+    tempCtx.stroke();
     
     const imageData = tempCtx.getImageData(0, 0, tempCanvas.width, tempCanvas.height);
     const pixels = imageData.data;
     
+    // Collect all filled pixels
     const textPixels = [];
-    for (let y = 0; y < tempCanvas.height; y += 3) {
-        for (let x = 0; x < tempCanvas.width; x += 3) {
+    for (let y = 0; y < tempCanvas.height; y += 2) {
+        for (let x = 0; x < tempCanvas.width; x += 2) {
             const i = (y * tempCanvas.width + x) * 4;
             if (pixels[i + 3] > 128) {
+                // Store with depth info for 3D effect (based on y position in letter)
+                const normalizedX = x / tempCanvas.width;
+                const normalizedY = y / tempCanvas.height;
                 textPixels.push({
-                    x: (x / tempCanvas.width - 0.5) * 0.7 + 0.5,
-                    y: (y / tempCanvas.height - 0.5) * 0.25 + 0.5
+                    x: (normalizedX - 0.5) * 0.85 + 0.5,  // Wider spread
+                    y: (normalizedY - 0.5) * 0.55 + 0.5,  // Taller
+                    depth: sin(normalizedX * PI) * 0.03,   // 3D bulge in center
+                    wave: random() * TAU  // Random phase for wave animation
                 });
             }
         }
     }
     
+    // Assign points to particles
     for (let i = 0; i < numPoints; i++) {
         if (textPixels.length > 0) {
             const idx = floor(random() * textPixels.length);
-            points.push(textPixels[idx]);
+            points.push({
+                ...textPixels[idx],
+                originalIdx: idx
+            });
         } else {
-            points.push({ x: 0.5, y: 0.5 });
+            points.push({ x: 0.5, y: 0.5, depth: 0, wave: 0 });
         }
     }
     
@@ -377,7 +417,7 @@ function triggerTextFormation() {
     if (textFormationActive) return;
     textFormationActive = true;
     textFormationStart = performance.now() / 1000;
-    sat2Points = generateTextPoints('SAT2', elements.length);
+    sat2Points = generateTextAndArrowPoints(elements.length);
 }
 
 document.addEventListener('click', triggerTextFormation);
@@ -528,11 +568,14 @@ const PATTERNS = {
             const gridSize = floor(sqrt(count));
             const row = floor(el.index / gridSize);
             const col = el.index % gridSize;
+            // Center the grid: go from -0.05 to 1.05 centered on 0.5
+            const span = 1.1;
+            const offset = (1 - span) / 2;  // -0.05
             el.data = {
-                gridX: col / gridSize,
-                gridY: row / gridSize,
-                baseX: (col / gridSize) * 1.1 - 0.05,  // Extend past edges
-                baseY: (row / gridSize) * 1.1 - 0.05
+                gridX: col / (gridSize - 1),
+                gridY: row / (gridSize - 1),
+                baseX: (col / (gridSize - 1)) * span + offset,
+                baseY: (row / (gridSize - 1)) * span + offset
             };
         },
         update: (el, t, count, cfg) => {
@@ -673,10 +716,14 @@ const PATTERNS = {
             const gridSize = floor(sqrt(count));
             const row = floor(el.index / gridSize);
             const col = el.index % gridSize;
-            const distFromCenter = sqrt(pow(col/gridSize - 0.5, 2) + pow(row/gridSize - 0.5, 2));
+            const span = 1.1;
+            const offset = (1 - span) / 2;
+            const normX = col / (gridSize - 1);
+            const normY = row / (gridSize - 1);
+            const distFromCenter = sqrt(pow(normX - 0.5, 2) + pow(normY - 0.5, 2));
             el.data = {
-                baseX: (col / gridSize) * 1.1 - 0.05,
-                baseY: (row / gridSize) * 1.1 - 0.05,
+                baseX: normX * span + offset,
+                baseY: normY * span + offset,
                 distFromCenter,
                 row,
                 col
@@ -868,9 +915,11 @@ const PATTERNS = {
             const gridSize = floor(sqrt(count));
             const row = floor(el.index / gridSize);
             const col = el.index % gridSize;
+            const span = 1.1;
+            const offset = (1 - span) / 2;
             el.data = {
-                baseX: (col / gridSize) * 1.1 - 0.05,  // Extend past edges
-                baseY: (row / gridSize) * 1.1 - 0.05
+                baseX: (col / (gridSize - 1)) * span + offset,
+                baseY: (row / (gridSize - 1)) * span + offset
             };
         },
         update: (el, t, count, cfg) => {
@@ -1042,13 +1091,21 @@ function render(timestamp) {
         const el = elements[i];
         let pos = pattern.update(el, t, count, CONFIG);
         
-        // Blend with SAT2 position if active
+        // Blend with SAT2 position if active - with 3D wave effect
         if (textBlend > 0 && sat2Points[i]) {
+            const pt = sat2Points[i];
+            // Add subtle 3D wave animation when formed
+            const waveOffset = sin(t * 2 + pt.wave) * 0.008 * textBlend;
+            const depthOffset = pt.depth * sin(t * 1.5) * textBlend;
+            
             pos = {
                 ...pos,
-                x: lerp(pos.x, sat2Points[i].x, textBlend),
-                y: lerp(pos.y, sat2Points[i].y, textBlend),
-                scale: lerp(pos.scale, 0.35, textBlend * 0.5)
+                x: lerp(pos.x, pt.x + waveOffset, textBlend),
+                y: lerp(pos.y, pt.y + depthOffset, textBlend),
+                // Make triangles smaller when forming text for legibility
+                scale: lerp(pos.scale, 0.18, textBlend),
+                // Gentle rotation sync when formed
+                rotation: lerp(pos.rotation, sin(t + pt.wave) * 15, textBlend * 0.7)
             };
         }
         
@@ -1066,26 +1123,15 @@ function render(timestamp) {
         let finalScale = clamp(pos.scale * el.sizeVariation * basePulse, 0.2, 1.5);
         const alpha = clamp(CONFIG.VISUAL.BASE_ALPHA * twinkle, 0.25, 1.0);
         
-        // Draw using image or fallback
-        if (triangleLoaded) {
-            drawTriangle(
-                pos.x * width,
-                pos.y * height,
-                pattern.baseSize * finalScale * scale,
-                pos.rotation * PI / 180,
-                hue,
-                alpha
-            );
-        } else {
-            drawTriangleFallback(
-                pos.x * width,
-                pos.y * height,
-                pattern.baseSize * finalScale * scale,
-                pos.rotation * PI / 180,
-                hue,
-                alpha
-            );
-        }
+        // Draw triangle
+        drawTriangle(
+            pos.x * width,
+            pos.y * height,
+            pattern.baseSize * finalScale * scale,
+            pos.rotation * PI / 180,
+            hue,
+            alpha
+        );
     }
     
     requestAnimationFrame(render);
