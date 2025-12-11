@@ -1,0 +1,1129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Visual Patterns</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@200;300;400&display=swap');
+        
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body { 
+            overflow: hidden; 
+            background: #000;
+            font-family: 'Outfit', sans-serif;
+            cursor: crosshair;
+        }
+        
+        #bg-canvas {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            z-index: 0;
+        }
+        
+        #main-canvas { 
+            display: block; 
+            position: fixed; 
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            z-index: 1;
+        }
+        
+        #info {
+            position: fixed; 
+            bottom: 24px; 
+            left: 24px;
+            color: rgba(255,255,255,0.6); 
+            font-size: 13px; 
+            font-weight: 300;
+            letter-spacing: 0.02em;
+            pointer-events: none; 
+            transition: opacity 0.5s;
+            text-shadow: 0 1px 8px rgba(0,0,0,0.6); 
+            z-index: 100;
+            line-height: 1.7;
+        }
+        
+        #info.hidden { opacity: 0; }
+        
+        #info kbd {
+            display: inline-block;
+            padding: 2px 6px;
+            margin: 0 2px;
+            background: rgba(255,255,255,0.1);
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 4px;
+            font-family: 'Outfit', sans-serif;
+            font-size: 11px;
+            font-weight: 400;
+        }
+        
+        #pattern-name {
+            position: fixed; 
+            top: 32px; 
+            left: 50%; 
+            transform: translateX(-50%);
+            color: rgba(255,255,255,0.9); 
+            font-size: 18px; 
+            font-weight: 200;
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+            pointer-events: none;
+            text-shadow: 0 2px 20px rgba(0,0,0,0.5); 
+            opacity: 0; 
+            transition: opacity 0.8s ease; 
+            z-index: 100;
+        }
+        
+        #pattern-name.visible { opacity: 1; }
+        
+        #auto-status {
+            color: rgba(255,255,255,0.8);
+            font-weight: 400;
+        }
+        
+        .mouse-hint {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            color: rgba(255,255,255,0.4);
+            font-size: 11px;
+            font-weight: 300;
+            letter-spacing: 0.05em;
+            pointer-events: none;
+            z-index: 100;
+            transition: opacity 0.5s;
+        }
+        
+        .mouse-hint.hidden { opacity: 0; }
+    </style>
+</head>
+<body>
+    <canvas id="bg-canvas"></canvas>
+    <canvas id="main-canvas"></canvas>
+    <div id="pattern-name"></div>
+    <div id="info">
+        <div><kbd>Space</kbd> Next Pattern <kbd>W</kbd> Wildcard <kbd>H</kbd> Hide UI <kbd>Click</kbd> SAT2</div>
+        <div><kbd>0-9</kbd> Select Pattern <kbd>A</kbd> Auto-cycle: <span id="auto-status">OFF</span></div>
+    </div>
+    <div class="mouse-hint">Click for SAT2</div>
+    
+    <script>
+// Triangle PNG as base64
+const TRIANGLE_PNG = 'data:image/webp;base64,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';
+
+const CONFIG = {
+    TIME_SCALE: 1.0,
+    AUTO_CYCLE: false,
+    AUTO_CYCLE_INTERVAL: 30000,
+    COLOR: {
+        SPEED: 0.05,
+        SATURATION: 0.8,
+        VALUE: 0.95,
+        HUE_OFFSET: 0,
+        RAINBOW_SPREAD: 1.0
+    },
+    VISUAL: {
+        PULSE_SPEED: 0.4,
+        PULSE_AMOUNT: 0.12,
+        TWINKLE_SPEED: 2.5,
+        TWINKLE_AMOUNT: 0.15,
+        BASE_ALPHA: 0.75
+    },
+    MOTION: {
+        CHAOS: 0.0,
+        BREATHING: 0.0,
+        WAVE_INTENSITY: 1.0
+    },
+    SPIRAL: {
+        ROTATION_SPEED: 0.00125,
+        SPIRAL_FACTOR: 0.015,
+        WIGGLE_FREQ: 0.2,
+        WIGGLE_AMP: 0.2
+    },
+    MOUSE: {
+        INFLUENCE_RADIUS: 0.25,  // Larger radius
+        PUSH_STRENGTH: 0.012,    // Gentler push
+        HUE_SHIFT: 0.15          // Color shift amount
+    },
+    BACKGROUND: {
+        NEBULA_INTENSITY: 0.4,
+        STAR_COUNT: 200,
+        NEBULA_SPEED: 0.0003
+    }
+};
+
+const { sin, cos, sqrt, floor, random, PI, pow, min, max, abs } = Math;
+const TAU = PI * 2;
+function lerp(a, b, t) { return a + (b - a) * t; }
+function clamp(v, mn, mx) { return min(max(v, mn), mx); }
+function smoothstep(t) { return t * t * (3 - 2 * t); }
+
+function hsvToRgb(h, s, v) {
+    h = ((h % 1) + 1) % 1;
+    const i = floor(h * 6), f = h * 6 - i;
+    const p = v * (1 - s), q = v * (1 - f * s), t = v * (1 - (1 - f) * s);
+    switch (i % 6) {
+        case 0: return [v, t, p]; case 1: return [q, v, p]; case 2: return [p, v, t];
+        case 3: return [p, q, v]; case 4: return [t, p, v]; case 5: return [v, p, q];
+    }
+}
+
+function roundTo(v, d = 3) { const m = pow(10, d); return Math.round(v * m) / m; }
+
+// Canvases
+const bgCanvas = document.getElementById('bg-canvas');
+const bgCtx = bgCanvas.getContext('2d');
+const mainCanvas = document.getElementById('main-canvas');
+const ctx = mainCanvas.getContext('2d');
+
+let width, height, minDim, scale;
+
+// Load triangle image
+const triangleImg = new Image();
+triangleImg.src = TRIANGLE_PNG;
+let triangleLoaded = false;
+triangleImg.onload = () => { triangleLoaded = true; };
+
+function resize() {
+    const dpr = min(window.devicePixelRatio || 1, 2);
+    width = window.innerWidth;
+    height = window.innerHeight;
+    
+    bgCanvas.width = width * dpr;
+    bgCanvas.height = height * dpr;
+    bgCanvas.style.width = width + 'px';
+    bgCanvas.style.height = height + 'px';
+    bgCtx.scale(dpr, dpr);
+    
+    mainCanvas.width = width * dpr;
+    mainCanvas.height = height * dpr;
+    mainCanvas.style.width = width + 'px';
+    mainCanvas.style.height = height + 'px';
+    ctx.scale(dpr, dpr);
+    
+    minDim = min(width, height);
+    scale = minDim / 800;
+    
+    // Regenerate stars
+    generateStars();
+}
+window.addEventListener('resize', resize);
+
+// Background stars
+let stars = [];
+function generateStars() {
+    stars = [];
+    for (let i = 0; i < CONFIG.BACKGROUND.STAR_COUNT; i++) {
+        stars.push({
+            x: random() * width,
+            y: random() * height,
+            size: random() * 1.5 + 0.5,
+            brightness: random() * 0.5 + 0.3,
+            twinkleSpeed: random() * 2 + 1,
+            twinklePhase: random() * TAU
+        });
+    }
+}
+
+// Draw galaxy background
+function drawBackground(t) {
+    // Base dark gradient
+    const gradient = bgCtx.createRadialGradient(
+        width * 0.5, height * 0.5, 0,
+        width * 0.5, height * 0.5, max(width, height) * 0.7
+    );
+    gradient.addColorStop(0, '#0a0a12');
+    gradient.addColorStop(0.5, '#050508');
+    gradient.addColorStop(1, '#000002');
+    bgCtx.fillStyle = gradient;
+    bgCtx.fillRect(0, 0, width, height);
+    
+    // Animated nebula clouds
+    const nebulaTime = t * CONFIG.BACKGROUND.NEBULA_SPEED;
+    const intensity = CONFIG.BACKGROUND.NEBULA_INTENSITY;
+    
+    // Nebula 1 - Purple/blue
+    const nebula1 = bgCtx.createRadialGradient(
+        width * (0.3 + sin(nebulaTime) * 0.1),
+        height * (0.3 + cos(nebulaTime * 0.7) * 0.1),
+        0,
+        width * 0.3, height * 0.3, width * 0.5
+    );
+    nebula1.addColorStop(0, `rgba(80, 40, 120, ${intensity * 0.3})`);
+    nebula1.addColorStop(0.4, `rgba(40, 20, 80, ${intensity * 0.15})`);
+    nebula1.addColorStop(1, 'rgba(0, 0, 0, 0)');
+    bgCtx.fillStyle = nebula1;
+    bgCtx.fillRect(0, 0, width, height);
+    
+    // Nebula 2 - Cyan/teal
+    const nebula2 = bgCtx.createRadialGradient(
+        width * (0.7 + cos(nebulaTime * 0.8) * 0.1),
+        height * (0.6 + sin(nebulaTime * 0.6) * 0.1),
+        0,
+        width * 0.7, height * 0.6, width * 0.4
+    );
+    nebula2.addColorStop(0, `rgba(30, 80, 100, ${intensity * 0.25})`);
+    nebula2.addColorStop(0.4, `rgba(15, 40, 60, ${intensity * 0.12})`);
+    nebula2.addColorStop(1, 'rgba(0, 0, 0, 0)');
+    bgCtx.fillStyle = nebula2;
+    bgCtx.fillRect(0, 0, width, height);
+    
+    // Nebula 3 - Pink/magenta accent
+    const nebula3 = bgCtx.createRadialGradient(
+        width * (0.5 + sin(nebulaTime * 1.2) * 0.15),
+        height * (0.8 + cos(nebulaTime * 0.9) * 0.1),
+        0,
+        width * 0.5, height * 0.8, width * 0.35
+    );
+    nebula3.addColorStop(0, `rgba(100, 30, 70, ${intensity * 0.2})`);
+    nebula3.addColorStop(0.5, `rgba(50, 15, 40, ${intensity * 0.1})`);
+    nebula3.addColorStop(1, 'rgba(0, 0, 0, 0)');
+    bgCtx.fillStyle = nebula3;
+    bgCtx.fillRect(0, 0, width, height);
+    
+    // Stars
+    for (const star of stars) {
+        const twinkle = (sin(t * star.twinkleSpeed + star.twinklePhase) * 0.5 + 0.5) * 0.4 + 0.6;
+        const alpha = star.brightness * twinkle;
+        bgCtx.fillStyle = `rgba(255, 255, 255, ${alpha})`;
+        bgCtx.beginPath();
+        bgCtx.arc(star.x, star.y, star.size, 0, TAU);
+        bgCtx.fill();
+    }
+}
+
+resize();
+
+// Mouse tracking
+let mouse = { x: 0.5, y: 0.5, active: false };
+let targetMouse = { x: 0.5, y: 0.5 };
+
+document.addEventListener('mousemove', (e) => {
+    targetMouse.x = e.clientX / width;
+    targetMouse.y = e.clientY / height;
+    mouse.active = true;
+});
+
+document.addEventListener('mouseleave', () => {
+    mouse.active = false;
+});
+
+document.addEventListener('touchmove', (e) => {
+    const touch = e.touches[0];
+    targetMouse.x = touch.clientX / width;
+    targetMouse.y = touch.clientY / height;
+    mouse.active = true;
+}, { passive: true });
+
+document.addEventListener('touchend', () => {
+    mouse.active = false;
+});
+
+// SAT2 Text Formation System
+let textFormationActive = false;
+let textFormationStart = 0;
+const TEXT_FORMATION_DURATION = 2.5;
+const TEXT_HOLD_DURATION = 1.5;
+const TEXT_RELEASE_DURATION = 2.0;
+
+function generateTextPoints(text, numPoints) {
+    const points = [];
+    const tempCanvas = document.createElement('canvas');
+    const tempCtx = tempCanvas.getContext('2d');
+    const fontSize = 200;
+    tempCanvas.width = 800;
+    tempCanvas.height = 300;
+    
+    tempCtx.fillStyle = '#fff';
+    tempCtx.font = `bold ${fontSize}px "Outfit", sans-serif`;
+    tempCtx.textAlign = 'center';
+    tempCtx.textBaseline = 'middle';
+    tempCtx.fillText(text, tempCanvas.width / 2, tempCanvas.height / 2);
+    
+    const imageData = tempCtx.getImageData(0, 0, tempCanvas.width, tempCanvas.height);
+    const pixels = imageData.data;
+    
+    const textPixels = [];
+    for (let y = 0; y < tempCanvas.height; y += 3) {
+        for (let x = 0; x < tempCanvas.width; x += 3) {
+            const i = (y * tempCanvas.width + x) * 4;
+            if (pixels[i + 3] > 128) {
+                textPixels.push({
+                    x: (x / tempCanvas.width - 0.5) * 0.7 + 0.5,
+                    y: (y / tempCanvas.height - 0.5) * 0.25 + 0.5
+                });
+            }
+        }
+    }
+    
+    for (let i = 0; i < numPoints; i++) {
+        if (textPixels.length > 0) {
+            const idx = floor(random() * textPixels.length);
+            points.push(textPixels[idx]);
+        } else {
+            points.push({ x: 0.5, y: 0.5 });
+        }
+    }
+    
+    return points;
+}
+
+let sat2Points = [];
+
+function triggerTextFormation() {
+    if (textFormationActive) return;
+    textFormationActive = true;
+    textFormationStart = performance.now() / 1000;
+    sat2Points = generateTextPoints('SAT2', elements.length);
+}
+
+document.addEventListener('click', triggerTextFormation);
+document.addEventListener('touchstart', (e) => {
+    if (e.touches.length === 1) {
+        triggerTextFormation();
+    }
+}, { passive: true });
+
+// Elements
+let elements = [];
+let currentPatternIndex = 0;
+
+function createElements(count) {
+    elements = [];
+    for (let i = 0; i < count; i++) {
+        elements.push({
+            index: i,
+            phase: random() * TAU,
+            twinklePhase: random() * TAU,
+            colorOffset: random() * 0.1,
+            sizeVariation: 0.85 + random() * 0.3,
+            data: {}
+        });
+    }
+}
+
+// Draw triangle - simple efficient stroke
+function drawTriangle(x, y, size, rotation, hue, alpha) {
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(rotation);
+    ctx.globalAlpha = alpha;
+    
+    const s = size;
+    const lineWidth = s * 0.18;
+    
+    const [r, g, b] = hsvToRgb(hue, CONFIG.COLOR.SATURATION, CONFIG.COLOR.VALUE);
+    ctx.strokeStyle = `rgb(${floor(r * 255)}, ${floor(g * 255)}, ${floor(b * 255)})`;
+    ctx.lineWidth = lineWidth;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    
+    ctx.beginPath();
+    ctx.moveTo(0, -s);
+    ctx.lineTo(-s * 0.866, s * 0.5);
+    ctx.lineTo(s * 0.866, s * 0.5);
+    ctx.closePath();
+    ctx.stroke();
+    
+    ctx.restore();
+}
+
+// Pattern definitions - EDGE TO EDGE coverage
+const PATTERNS = {
+    spiral: {
+        name: "Spiral Galaxy",
+        elementCount: 2200,
+        baseSize: 28,
+        init: (el, count) => {
+            const goldenAngle = PI * (3 - sqrt(5));
+            const i = el.index;
+            el.data = {
+                baseAngle: (i * goldenAngle) % TAU,
+                baseRadius: 0.7 * pow(i / count, 0.65),  // Expanded to 0.7
+                speed: 0.5 + (i / count),
+                tubeAngle: random() * TAU,
+                tubeSpeed: 0.2 + random() * 0.3
+            };
+        },
+        update: (el, t, count, cfg) => {
+            const d = el.data;
+            const angleOffset = t * cfg.SPIRAL.ROTATION_SPEED * d.speed * 0.7;
+            const spiralOffset = cfg.SPIRAL.SPIRAL_FACTOR * t * 0.7;
+            const wiggle = sin(t * cfg.SPIRAL.WIGGLE_FREQ + el.index * 0.5) * cfg.SPIRAL.WIGGLE_AMP * cfg.MOTION.WAVE_INTENSITY;
+            const breathe = sin(t * 0.3) * cfg.MOTION.BREATHING * 0.1;
+            const currentAngle = d.baseAngle + angleOffset + spiralOffset;
+            
+            const tubeAngle = d.tubeAngle + t * d.tubeSpeed;
+            const tubeThickness = 0.05 * d.baseRadius;
+            const tilt = 0.5;
+            
+            const baseRadius = (d.baseRadius + wiggle * 0.3) * (1 + breathe);
+            const xOffset = cos(tubeAngle) * tubeThickness;
+            const yOffset = sin(tubeAngle) * tubeThickness * sin(tilt);
+            
+            const depthScale = 0.2 + (d.baseRadius / 0.7) * 0.9;
+            const tubeDepthScale = 0.8 + 0.2 * cos(tubeAngle);
+            
+            return {
+                x: 0.5 + cos(currentAngle) * baseRadius + xOffset,
+                y: 0.5 + sin(currentAngle) * baseRadius + yOffset,
+                rotation: angleOffset * 45,
+                scale: depthScale * tubeDepthScale
+            };
+        }
+    },
+    
+    rings: {
+        name: "Ripple Rings",
+        elementCount: 2000,
+        baseSize: 32,
+        init: (el, count) => {
+            const ringCount = 14;  // More rings
+            const ring = floor(el.index / (count / ringCount));
+            const posInRing = (el.index % (count / ringCount)) / (count / ringCount);
+            el.data = {
+                baseAngle: posInRing * TAU,
+                baseRadius: (ring / ringCount) * 0.65 + 0.03,  // Expanded
+                ring,
+                posInRing,
+                tubeAngle: random() * TAU,
+                tubeSpeed: 0.4 + random() * 0.3
+            };
+        },
+        update: (el, t, count, cfg) => {
+            const d = el.data;
+            const wave = sin(t * 2 - d.baseRadius * 15) * 0.03 * cfg.MOTION.WAVE_INTENSITY;
+            const rotation = t * 0.35 + d.ring * 0.5;
+            const angleOffset = rotation + d.posInRing * TAU;
+            const radialWiggle = sin(t * 3 + d.ring * 2 + d.posInRing * 10) * 0.02;
+            const pulse = sin(t * 3 + d.ring * 0.8) * 0.3;
+            const breathe = sin(t * 0.3) * cfg.MOTION.BREATHING * 0.15;
+            
+            const radius = (d.baseRadius + wave + radialWiggle) * (1 + breathe);
+            
+            const tubeAngle = d.tubeAngle + t * d.tubeSpeed;
+            const tubeThickness = 0.03;
+            const tilt = 0.6;
+            const xOffset = cos(tubeAngle) * tubeThickness;
+            const yOffset = sin(tubeAngle) * tubeThickness * sin(tilt);
+            const tubeDepthScale = 0.75 + 0.25 * cos(tubeAngle);
+            
+            return {
+                x: 0.5 + cos(angleOffset) * radius + xOffset,
+                y: 0.5 + sin(angleOffset) * radius + yOffset,
+                rotation: rotation * 100 + sin(t * 2 + d.ring) * 45,
+                scale: (0.6 + pulse) * tubeDepthScale
+            };
+        }
+    },
+    
+    grid: {
+        name: "Flowing Grid",
+        elementCount: 2500,
+        baseSize: 36,
+        init: (el, count) => {
+            const gridSize = floor(sqrt(count));
+            const row = floor(el.index / gridSize);
+            const col = el.index % gridSize;
+            el.data = {
+                gridX: col / gridSize,
+                gridY: row / gridSize,
+                baseX: (col / gridSize) * 1.1 - 0.05,  // Extend past edges
+                baseY: (row / gridSize) * 1.1 - 0.05
+            };
+        },
+        update: (el, t, count, cfg) => {
+            const d = el.data;
+            const intensity = clamp(cfg.MOTION.WAVE_INTENSITY, 0, 1.0);
+            const flowX = sin(t * 0.15 + d.gridY * 2.5) * 0.08 * intensity;
+            const flowY = cos(t * 0.15 + d.gridX * 2.5) * 0.08 * intensity;
+            const wave = sin(t * 0.5 + d.gridX * 2 + d.gridY * 2) * 0.025;
+            const chaos = clamp(cfg.MOTION.CHAOS, 0, 0.2) * 0.3;
+            const chaosX = sin(t * 0.3 + d.gridX * 5) * chaos * 0.02;
+            const chaosY = cos(t * 0.3 + d.gridY * 5) * chaos * 0.02;
+            
+            return {
+                x: d.baseX + flowX + chaosX,
+                y: d.baseY + flowY + chaosY,
+                rotation: t * 5 + (d.gridX + d.gridY) * 15,
+                scale: 0.55 + wave
+            };
+        }
+    },
+    
+    storm: {
+        name: "Particle Storm",
+        elementCount: 2000,
+        baseSize: 24,
+        init: (el, count) => {
+            const angle = random() * TAU;
+            const radius = random() * 0.6;  // Larger spread
+            el.data = {
+                x: 0.5 + cos(angle) * radius,
+                y: 0.5 + sin(angle) * radius,
+                vx: (random() - 0.5) * 0.002,
+                vy: (random() - 0.5) * 0.002,
+                homeAngle: (el.index / count) * TAU,
+                tubeAngle: random() * TAU,
+                tubeSpeed: 0.3 + random() * 0.4
+            };
+        },
+        update: (el, t, count, cfg) => {
+            const d = el.data;
+            const cycleTime = 45;
+            const phase = t % cycleTime;
+            const sstep = (x) => x * x * (3 - 2 * x);
+            
+            let formationAmount = 0;
+            let infinityAmount = 0;
+            
+            if (phase < 10) {
+                formationAmount = 0;
+            } else if (phase < 15) {
+                formationAmount = sstep((phase - 10) / 5);
+            } else if (phase < 22) {
+                formationAmount = 1;
+            } else if (phase < 27) {
+                formationAmount = 1;
+                infinityAmount = sstep((phase - 22) / 5);
+            } else if (phase < 34) {
+                formationAmount = 1;
+                infinityAmount = 1;
+            } else if (phase < 39) {
+                formationAmount = 1;
+                infinityAmount = 1 - sstep((phase - 34) / 5);
+            } else if (phase < 42) {
+                formationAmount = 1;
+            } else {
+                formationAmount = 1 - sstep((phase - 42) / 3);
+            }
+            
+            const majorRadius = 0.4;  // Larger torus
+            const minorRadius = 0.12;
+            const ringSpeed = 0.4;
+            const tubeAngle = d.tubeAngle + t * d.tubeSpeed;
+            const ringAngle = d.homeAngle + t * ringSpeed;
+            
+            const tilt = 0.4;
+            const torusX = 0.5 + (majorRadius + minorRadius * cos(tubeAngle)) * cos(ringAngle);
+            const torusY = 0.5 + (majorRadius + minorRadius * cos(tubeAngle)) * sin(ringAngle) * cos(tilt) 
+                              - minorRadius * sin(tubeAngle) * sin(tilt);
+            const depthScale = 0.7 + 0.3 * cos(tubeAngle);
+            
+            const infScale = 0.45;  // Larger infinity
+            const infSpeed = 0.3;
+            const infT = d.homeAngle + t * infSpeed;
+            const denominator = 1 + sin(infT) * sin(infT);
+            const infBaseX = (infScale * cos(infT)) / denominator;
+            const infBaseY = (infScale * sin(infT) * cos(infT)) / denominator;
+            const infTubeRadius = 0.08;
+            const infX = 0.5 + infBaseX + cos(tubeAngle) * infTubeRadius * 0.5;
+            const infY = 0.5 + infBaseY + sin(tubeAngle) * infTubeRadius;
+            
+            const targetX = lerp(torusX, infX, infinityAmount);
+            const targetY = lerp(torusY, infY, infinityAmount);
+            const targetScale = lerp(depthScale, 0.7 + 0.3 * cos(tubeAngle), infinityAmount);
+            
+            const chaosStrength = 1 - formationAmount;
+            
+            if (chaosStrength > 0.01) {
+                const dx = 0.5 - d.x;
+                const dy = 0.5 - d.y;
+                const attract = 0.00008;
+                d.vx += dx * attract;
+                d.vy += dy * attract;
+                const turb = cfg.MOTION.WAVE_INTENSITY * 0.00008;
+                d.vx += sin(t * 2 + el.phase) * turb;
+                d.vy += cos(t * 2 + el.phase + 1) * turb;
+                d.vx *= 0.99;
+                d.vy *= 0.99;
+                d.x += d.vx * chaosStrength;
+                d.y += d.vy * chaosStrength;
+            }
+            
+            const lerpStrength = formationAmount * 0.06;
+            d.x = lerp(d.x, targetX, lerpStrength);
+            d.y = lerp(d.y, targetY, lerpStrength);
+            
+            // Soft boundaries - wrap with margin
+            if (d.x < -0.1) d.x = 1.1;
+            if (d.x > 1.1) d.x = -0.1;
+            if (d.y < -0.1) d.y = 1.1;
+            if (d.y > 1.1) d.y = -0.1;
+            
+            const finalScale = lerp(0.4, targetScale * 0.6, formationAmount);
+            
+            return {
+                x: d.x,
+                y: d.y,
+                rotation: t * 50,
+                scale: finalScale + sin(t * 3 + el.phase) * 0.15
+            };
+        }
+    },
+    
+    pulseGrid: {
+        name: "Pulse Grid",
+        elementCount: 2025,
+        baseSize: 28,
+        init: (el, count) => {
+            const gridSize = floor(sqrt(count));
+            const row = floor(el.index / gridSize);
+            const col = el.index % gridSize;
+            const distFromCenter = sqrt(pow(col/gridSize - 0.5, 2) + pow(row/gridSize - 0.5, 2));
+            el.data = {
+                baseX: (col / gridSize) * 1.1 - 0.05,
+                baseY: (row / gridSize) * 1.1 - 0.05,
+                distFromCenter,
+                row,
+                col
+            };
+        },
+        update: (el, t, count, cfg) => {
+            const d = el.data;
+            const ripple = sin(t * 3 - d.distFromCenter * 10) * cfg.MOTION.WAVE_INTENSITY;
+            const scalePulse = 0.5 + ripple * 0.3;
+            const pullStrength = ripple * 0.04;
+            const dx = (0.5 - d.baseX) * pullStrength;
+            const dy = (0.5 - d.baseY) * pullStrength;
+            const rot = ripple * 45 + t * 20;
+            
+            return {
+                x: d.baseX + dx,
+                y: d.baseY + dy,
+                rotation: rot,
+                scale: scalePulse
+            };
+        }
+    },
+    
+    orbits: {
+        name: "Planetary Orbits",
+        elementCount: 1920,
+        baseSize: 35,
+        init: (el, count) => {
+            const orbitCount = 10;  // More orbits
+            const orbit = floor(el.index / (count / orbitCount));
+            const posInOrbit = (el.index % (count / orbitCount)) / (count / orbitCount);
+            el.data = {
+                orbit,
+                orbitRadius: 0.05 + orbit * 0.065,  // Expanded
+                angle: posInOrbit * TAU,
+                orbitSpeed: 1.2 - orbit * 0.08,
+                orbitPhase: orbit * 0.3,
+                tubeAngle: random() * TAU,
+                tubeSpeed: 0.5 + random() * 0.4
+            };
+        },
+        update: (el, t, count, cfg) => {
+            const d = el.data;
+            const orbitAngle = t * d.orbitSpeed + d.angle;
+            const breathe = 1 + sin(t * 0.3) * cfg.MOTION.BREATHING * 0.2;
+            const ellipseA = d.orbitRadius * breathe;
+            const ellipseB = d.orbitRadius * (0.75 + sin(t * 0.5 + d.orbitPhase) * 0.2) * breathe;
+            
+            const tubeAngle = d.tubeAngle + t * d.tubeSpeed;
+            const tubeThickness = 0.03;
+            const tilt = 0.5;
+            
+            const baseX = 0.5 + cos(orbitAngle) * ellipseA;
+            const baseY = 0.5 + sin(orbitAngle) * ellipseB;
+            const xOffset = cos(tubeAngle) * tubeThickness;
+            const yOffset = sin(tubeAngle) * tubeThickness * sin(tilt);
+            const tubeDepthScale = 0.7 + 0.3 * cos(tubeAngle);
+            
+            const microOrbit = t * 2.5 + el.index * 0.08;
+            const microRadius = 0.015;
+            
+            return {
+                x: baseX + cos(microOrbit) * microRadius + xOffset,
+                y: baseY + sin(microOrbit) * microRadius + yOffset,
+                rotation: orbitAngle * 50 + microOrbit * 20,
+                scale: (0.45 + sin(t * 2 + d.orbit) * 0.15 + abs(sin(orbitAngle)) * 0.1) * tubeDepthScale
+            };
+        }
+    },
+    
+    helix: {
+        name: "DNA Helix",
+        elementCount: 1000,
+        baseSize: 38,
+        init: (el, count) => {
+            el.data = {
+                strand: el.index % 2,
+                position: floor(el.index / 2) / floor(count / 2),
+                tubeAngle: random() * TAU,
+                tubeSpeed: 0.5 + random() * 0.3
+            };
+        },
+        update: (el, t, count, cfg) => {
+            const d = el.data;
+            const tOffset = t * 0.4;
+            const helixAngle = d.position * PI * 4 + tOffset + d.strand * PI;
+            const breathe = 1 + sin(t * 0.3) * cfg.MOTION.BREATHING * 0.3;
+            const wiggle = sin(t * 2 + d.position * 10) * 0.03 * cfg.MOTION.WAVE_INTENSITY;
+            const radiusWiggle = (0.25 + sin(t * 1.5 + d.position * 5) * 0.02) * breathe;  // Wider helix
+            
+            const tubeAngle = d.tubeAngle + t * d.tubeSpeed;
+            const tubeThickness = 0.03;
+            const xOffset = cos(tubeAngle) * tubeThickness;
+            const zOffset = sin(tubeAngle) * tubeThickness;
+            const tubeDepthScale = 0.7 + 0.3 * cos(tubeAngle);
+            
+            const x = 0.5 + cos(helixAngle) * radiusWiggle + wiggle + xOffset;
+            const y = -0.05 + d.position * 1.1 + zOffset * 0.3;  // Extend past edges
+            const pulse = sin(d.position * 8 + t * 2) * 0.2;
+            
+            return {
+                x,
+                y,
+                rotation: helixAngle * 50 + t * 30,
+                scale: (0.4 + pulse + sin(t * 3 + d.strand * PI) * 0.15) * tubeDepthScale
+            };
+        }
+    },
+    
+    vortex: {
+        name: "Vortex",
+        elementCount: 2000,
+        baseSize: 26,
+        init: (el, count) => {
+            el.data = {
+                height: el.index / count,
+                baseAngle: (el.index / count) * TAU * 8,
+                radiusMod: 0.8 + random() * 0.4,
+                tubeAngle: random() * TAU,
+                tubeSpeed: 0.6 + random() * 0.4
+            };
+        },
+        update: (el, t, count, cfg) => {
+            const d = el.data;
+            let radiusAtHeight = ((1 - d.height) * 0.55 + 0.05) * d.radiusMod;  // Wider vortex
+            const spin = t * (0.3 + d.height * 0.5);
+            const angle = d.baseAngle + spin;
+            const wobble = sin(t * 1.5 + d.height * 10) * 0.02 * cfg.MOTION.WAVE_INTENSITY;
+            const breathe = 1 + sin(t * 0.3) * cfg.MOTION.BREATHING * 0.2;
+            const radius = radiusAtHeight * breathe + wobble;
+            
+            const tubeAngle = d.tubeAngle + t * d.tubeSpeed;
+            const tubeThickness = 0.04 * (1 - d.height * 0.5);
+            const xOffset = cos(tubeAngle) * tubeThickness;
+            const yOffset = sin(tubeAngle) * tubeThickness * 0.4;
+            const tubeDepthScale = 0.7 + 0.3 * cos(tubeAngle);
+            
+            return {
+                x: 0.5 + cos(angle) * radius + xOffset,
+                y: -0.05 + d.height * 1.1 + yOffset,  // Extend past edges
+                rotation: angle * 30 + t * 15,
+                scale: (0.3 + (1 - d.height) * 0.4) * tubeDepthScale
+            };
+        }
+    },
+    
+    mandala: {
+        name: "Mandala",
+        elementCount: 2160,
+        baseSize: 30,
+        init: (el, count) => {
+            const symmetry = 6;
+            const segment = el.index % symmetry;
+            const indexInSegment = floor(el.index / symmetry);
+            const layer = floor(indexInSegment / 20);
+            const posInLayer = (indexInSegment % 20) / 20;
+            el.data = {
+                segment,
+                layer,
+                posInLayer,
+                baseRadius: 0.04 + layer * 0.055,  // More layers, wider
+                symmetry
+            };
+        },
+        update: (el, t, count, cfg) => {
+            const d = el.data;
+            const segmentAngle = (d.segment / d.symmetry) * TAU;
+            const innerAngle = d.posInLayer * TAU / d.symmetry;
+            const layerSpin = t * (0.5 - d.layer * 0.04) * (d.layer % 2 === 0 ? 1 : -1);
+            const angle = segmentAngle + innerAngle + layerSpin;
+            const breathe = 1 + sin(t * 0.4 + d.layer * 0.5) * cfg.MOTION.BREATHING * 0.15;
+            const pulse = sin(t * 2 + d.layer * PI/3) * 0.02 * cfg.MOTION.WAVE_INTENSITY;
+            const radius = (d.baseRadius + pulse) * breathe;
+            
+            return {
+                x: 0.5 + cos(angle) * radius,
+                y: 0.5 + sin(angle) * radius,
+                rotation: layerSpin * 80 + d.layer * 30,
+                scale: 0.4 + sin(t * 3 + d.layer) * 0.15
+            };
+        }
+    },
+    
+    waves: {
+        name: "Wave Interference",
+        elementCount: 2500,
+        baseSize: 34,
+        init: (el, count) => {
+            const gridSize = floor(sqrt(count));
+            const row = floor(el.index / gridSize);
+            const col = el.index % gridSize;
+            el.data = {
+                baseX: (col / gridSize) * 1.1 - 0.05,  // Extend past edges
+                baseY: (row / gridSize) * 1.1 - 0.05
+            };
+        },
+        update: (el, t, count, cfg) => {
+            const d = el.data;
+            const dx1 = d.baseX - 0.3, dy1 = d.baseY - 0.5;
+            const dist1 = sqrt(dx1*dx1 + dy1*dy1);
+            const dx2 = d.baseX - 0.7, dy2 = d.baseY - 0.5;
+            const dist2 = sqrt(dx2*dx2 + dy2*dy2);
+            const intensity = cfg.MOTION.WAVE_INTENSITY;
+            const wave1 = sin(t * 3 - dist1 * 20) * intensity;
+            const wave2 = sin(t * 3 - dist2 * 20 + PI/3) * intensity;
+            const interference = (wave1 + wave2) / 2;
+            const offset = interference * 0.05;
+            const circularMotion = sin(t * 1.5 + interference * PI) * 0.025;
+            
+            return {
+                x: d.baseX + circularMotion,
+                y: d.baseY + offset,
+                rotation: t * 20 + interference * 90 + sin(t * 2.5) * 30,
+                scale: 0.3 + (interference + 1) * 0.2 + sin(t * 4 + el.index * 0.1) * 0.1
+            };
+        }
+    }
+};
+
+const patternKeys = Object.keys(PATTERNS);
+
+function initPattern(patternKey) {
+    const pattern = PATTERNS[patternKey];
+    createElements(pattern.elementCount);
+    elements.forEach(el => pattern.init(el, pattern.elementCount));
+    showPatternName(pattern.name);
+}
+
+function switchPattern(index) {
+    currentPatternIndex = ((index % patternKeys.length) + patternKeys.length) % patternKeys.length;
+    initPattern(patternKeys[currentPatternIndex]);
+}
+
+function nextPattern() {
+    switchPattern(currentPatternIndex + 1);
+}
+
+function showPatternName(name) {
+    const el = document.getElementById('pattern-name');
+    el.textContent = name;
+    el.classList.add('visible');
+    setTimeout(() => el.classList.remove('visible'), 2500);
+}
+
+// Wildcard presets
+const WILDCARD_PRESETS = [
+    { name: "Calm Ocean", COLOR: { SPEED: 0.02, HUE_OFFSET: 0.55, SATURATION: 0.6 }, MOTION: { WAVE_INTENSITY: 0.6, BREATHING: 0.4, CHAOS: 0 } },
+    { name: "Fire Storm", COLOR: { SPEED: 0.04, HUE_OFFSET: 0.0, RAINBOW_SPREAD: 0.15, SATURATION: 0.9 }, MOTION: { CHAOS: 0.1, WAVE_INTENSITY: 0.8 } },
+    { name: "Ethereal", COLOR: { SPEED: 0.01, SATURATION: 0.4, VALUE: 1.0 }, VISUAL: { BASE_ALPHA: 0.6, TWINKLE_AMOUNT: 0.3 }, MOTION: { CHAOS: 0 } },
+    { name: "Hyperdrive", TIME_SCALE: 1.3, COLOR: { SPEED: 0.06 }, MOTION: { WAVE_INTENSITY: 1.0, CHAOS: 0 } },
+    { name: "Meditation", TIME_SCALE: 0.6, COLOR: { SPEED: 0.015 }, MOTION: { BREATHING: 0.6, CHAOS: 0, WAVE_INTENSITY: 0.5 } },
+    { name: "Disco", COLOR: { SPEED: 0.08, RAINBOW_SPREAD: 1.2 }, VISUAL: { PULSE_SPEED: 0.6, PULSE_AMOUNT: 0.15 }, MOTION: { CHAOS: 0 } },
+    { name: "Nebula", COLOR: { HUE_OFFSET: 0.75, SATURATION: 0.7, RAINBOW_SPREAD: 0.3 }, MOTION: { BREATHING: 0.5, CHAOS: 0 } },
+    { name: "Gentle Chaos", MOTION: { CHAOS: 0.15, WAVE_INTENSITY: 0.9 }, TIME_SCALE: 1.0 }
+];
+
+function applyWildcard() {
+    if (random() > 0.5) {
+        const preset = WILDCARD_PRESETS[floor(random() * WILDCARD_PRESETS.length)];
+        console.log("🎲 Preset:", preset.name);
+        for (const [cat, vals] of Object.entries(preset)) {
+            if (cat === 'name') continue;
+            if (typeof vals === 'object') {
+                for (const [k, v] of Object.entries(vals)) {
+                    if (CONFIG[cat]?.[k] !== undefined) CONFIG[cat][k] = v;
+                }
+            } else if (CONFIG[cat] !== undefined) {
+                CONFIG[cat] = vals;
+            }
+        }
+    } else {
+        console.log("🎲 Random");
+        CONFIG.TIME_SCALE = roundTo(0.6 + random() * 0.6);
+        CONFIG.COLOR.SPEED = roundTo(0.01 + random() * 0.05);
+        CONFIG.COLOR.HUE_OFFSET = roundTo(random());
+        CONFIG.COLOR.SATURATION = roundTo(0.6 + random() * 0.35);
+        CONFIG.COLOR.RAINBOW_SPREAD = roundTo(0.4 + random() * 0.8);
+        CONFIG.VISUAL.PULSE_SPEED = roundTo(0.2 + random() * 0.5);
+        CONFIG.VISUAL.PULSE_AMOUNT = roundTo(0.05 + random() * 0.12);
+        CONFIG.MOTION.CHAOS = roundTo(random() * 0.15);
+        CONFIG.MOTION.BREATHING = roundTo(random() * 0.35);
+        CONFIG.MOTION.WAVE_INTENSITY = roundTo(0.5 + random() * 0.4);
+    }
+}
+
+// Auto cycle
+let autoCycleTimer = null;
+function toggleAutoCycle() {
+    CONFIG.AUTO_CYCLE = !CONFIG.AUTO_CYCLE;
+    document.getElementById('auto-status').textContent = CONFIG.AUTO_CYCLE ? 'ON' : 'OFF';
+    if (CONFIG.AUTO_CYCLE) {
+        autoCycleTimer = setInterval(() => {
+            nextPattern();
+            if (random() > 0.5) applyWildcard();
+        }, CONFIG.AUTO_CYCLE_INTERVAL);
+    } else {
+        clearInterval(autoCycleTimer);
+    }
+}
+
+// Apply mouse influence with hue shift
+function getMouseInfluence(posX, posY) {
+    if (!mouse.active) return { push: { x: 0, y: 0 }, hueShift: 0 };
+    
+    const dx = posX - mouse.x;
+    const dy = posY - mouse.y;
+    const dist = sqrt(dx * dx + dy * dy);
+    const radius = CONFIG.MOUSE.INFLUENCE_RADIUS;
+    
+    if (dist < radius && dist > 0.001) {
+        // Smooth cubic falloff
+        const t = 1 - dist / radius;
+        const influence = t * t * CONFIG.MOUSE.PUSH_STRENGTH;
+        const pushX = (dx / dist) * influence;
+        const pushY = (dy / dist) * influence;
+        const hueShift = t * t * CONFIG.MOUSE.HUE_SHIFT;
+        
+        return { push: { x: pushX, y: pushY }, hueShift };
+    }
+    
+    return { push: { x: 0, y: 0 }, hueShift: 0 };
+}
+
+// Main render loop
+function render(timestamp) {
+    const t = (timestamp / 1000) * CONFIG.TIME_SCALE;
+    
+    // Smooth mouse tracking
+    mouse.x = lerp(mouse.x, targetMouse.x, 0.08);
+    mouse.y = lerp(mouse.y, targetMouse.y, 0.08);
+    
+    // Draw background
+    drawBackground(t);
+    
+    // Clear main canvas
+    ctx.clearRect(0, 0, width, height);
+    
+    const pattern = PATTERNS[patternKeys[currentPatternIndex]];
+    const count = elements.length;
+    const basePulse = 1 + sin(t * CONFIG.VISUAL.PULSE_SPEED) * CONFIG.VISUAL.PULSE_AMOUNT;
+    const globalTwinkle = sin(t * CONFIG.VISUAL.TWINKLE_SPEED * 0.5) * 0.5 + 0.5;
+    
+    // Handle SAT2 text formation
+    let textBlend = 0;
+    if (textFormationActive) {
+        const elapsed = timestamp / 1000 - textFormationStart;
+        const totalDuration = TEXT_FORMATION_DURATION + TEXT_HOLD_DURATION + TEXT_RELEASE_DURATION;
+        
+        if (elapsed < TEXT_FORMATION_DURATION) {
+            textBlend = smoothstep(elapsed / TEXT_FORMATION_DURATION);
+        } else if (elapsed < TEXT_FORMATION_DURATION + TEXT_HOLD_DURATION) {
+            textBlend = 1;
+        } else if (elapsed < totalDuration) {
+            const releaseProgress = (elapsed - TEXT_FORMATION_DURATION - TEXT_HOLD_DURATION) / TEXT_RELEASE_DURATION;
+            textBlend = 1 - smoothstep(releaseProgress);
+        } else {
+            textFormationActive = false;
+            textBlend = 0;
+        }
+    }
+    
+    for (let i = 0; i < count; i++) {
+        const el = elements[i];
+        let pos = pattern.update(el, t, count, CONFIG);
+        
+        // Blend with SAT2 position if active
+        if (textBlend > 0 && sat2Points[i]) {
+            pos = {
+                ...pos,
+                x: lerp(pos.x, sat2Points[i].x, textBlend),
+                y: lerp(pos.y, sat2Points[i].y, textBlend),
+                scale: lerp(pos.scale, 0.35, textBlend * 0.5)
+            };
+        }
+        
+        // Get mouse influence (position + hue shift)
+        const mouseEffect = getMouseInfluence(pos.x, pos.y);
+        pos.x += mouseEffect.push.x;
+        pos.y += mouseEffect.push.y;
+        
+        // Base hue + mouse hue shift
+        let hue = (t * CONFIG.COLOR.SPEED + CONFIG.COLOR.HUE_OFFSET + (i / count) * CONFIG.COLOR.RAINBOW_SPREAD + el.colorOffset) % 1;
+        hue = (hue + mouseEffect.hueShift) % 1;
+        
+        // Effects
+        const twinkle = 1 - ((sin(t * CONFIG.VISUAL.TWINKLE_SPEED + el.twinklePhase) * 0.5 + 0.5) * globalTwinkle * CONFIG.VISUAL.TWINKLE_AMOUNT);
+        let finalScale = clamp(pos.scale * el.sizeVariation * basePulse, 0.2, 1.5);
+        const alpha = clamp(CONFIG.VISUAL.BASE_ALPHA * twinkle, 0.25, 1.0);
+        
+        // Draw using image or fallback
+        if (triangleLoaded) {
+            drawTriangle(
+                pos.x * width,
+                pos.y * height,
+                pattern.baseSize * finalScale * scale,
+                pos.rotation * PI / 180,
+                hue,
+                alpha
+            );
+        } else {
+            drawTriangleFallback(
+                pos.x * width,
+                pos.y * height,
+                pattern.baseSize * finalScale * scale,
+                pos.rotation * PI / 180,
+                hue,
+                alpha
+            );
+        }
+    }
+    
+    requestAnimationFrame(render);
+}
+
+// Input handling
+let uiVisible = true;
+document.addEventListener('keydown', (e) => {
+    switch(e.key.toLowerCase()) {
+        case ' ':
+            e.preventDefault();
+            nextPattern();
+            break;
+        case 'w':
+            applyWildcard();
+            break;
+        case 'h':
+            uiVisible = !uiVisible;
+            document.getElementById('info').classList.toggle('hidden', !uiVisible);
+            document.querySelector('.mouse-hint').classList.toggle('hidden', !uiVisible);
+            break;
+        case 'a':
+            toggleAutoCycle();
+            break;
+        case 'p':
+            console.log('Current CONFIG:', JSON.stringify(CONFIG, null, 2));
+            break;
+        case '1': case '2': case '3': case '4': case '5':
+        case '6': case '7': case '8': case '9': case '0':
+            switchPattern(e.key === '0' ? 9 : parseInt(e.key) - 1);
+            break;
+    }
+});
+
+// Initialize
+initPattern(patternKeys[0]);
+requestAnimationFrame(render);
+console.log("✨ Visualizer ready! Space=next, W=wildcard, H=hide UI, A=auto-cycle, Click=SAT2");
+    </script>
+</body>
+</html>
