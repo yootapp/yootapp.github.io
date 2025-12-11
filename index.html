@@ -185,9 +185,9 @@ const CONFIG = {
     },
     BACKGROUND: {
         NEBULA_INTENSITY: 0.5,
-        STAR_COUNT: 250,
-        SHOOTING_STAR_CHANCE: 0.003,
-        PULSAR_COUNT: 5
+        STAR_COUNT: 150,
+        SHOOTING_STAR_CHANCE: 0.002,
+        PULSAR_COUNT: 3
     },
     TRANSITION: {
         DURATION: 2.0  // Seconds to tween between patterns
@@ -252,6 +252,8 @@ window.addEventListener('resize', resize);
 let stars = [];
 let pulsars = [];
 let shootingStars = [];
+let bgImageData = null;
+let lastBgUpdate = 0;
 
 function generateStars() {
     stars = [];
@@ -259,14 +261,10 @@ function generateStars() {
         stars.push({
             x: random() * width,
             y: random() * height,
-            size: random() * 2 + 0.5,
-            brightness: random() * 0.6 + 0.2,
-            twinkleSpeed: random() * 3 + 0.5,
-            twinklePhase: random() * TAU,
-            // Some stars pulse more dramatically
-            isPulsar: random() < 0.05,
-            pulsarSpeed: random() * 2 + 1,
-            pulsarPhase: random() * TAU
+            size: random() * 1.5 + 0.5,
+            brightness: random() * 0.5 + 0.2,
+            twinkleSpeed: random() * 2 + 0.5,
+            twinklePhase: random() * TAU
         });
     }
 }
@@ -277,32 +275,28 @@ function generatePulsars() {
         pulsars.push({
             x: random() * width,
             y: random() * height,
-            size: random() * 3 + 2,
+            size: random() * 2 + 1.5,
             speed: random() * 1.5 + 0.5,
             phase: random() * TAU,
-            color: random()  // Hue
+            hue: random()
         });
     }
 }
 
 function updateShootingStars(t) {
-    // Spawn new shooting stars
     if (random() < CONFIG.BACKGROUND.SHOOTING_STAR_CHANCE) {
-        const startX = random() * width * 1.2 - width * 0.1;
-        const angle = PI * 0.15 + random() * PI * 0.2;  // Mostly diagonal
         shootingStars.push({
-            x: startX,
+            x: random() * width * 1.2 - width * 0.1,
             y: -20,
-            angle: angle,
+            angle: PI * 0.15 + random() * PI * 0.2,
             speed: 400 + random() * 300,
-            length: 80 + random() * 120,
+            length: 80 + random() * 100,
             life: 0,
-            maxLife: 1.5 + random() * 1,
+            maxLife: 1.5 + random(),
             brightness: 0.6 + random() * 0.4
         });
     }
     
-    // Update existing
     for (let i = shootingStars.length - 1; i >= 0; i--) {
         const star = shootingStars[i];
         star.life += 1/60;
@@ -315,128 +309,76 @@ function updateShootingStars(t) {
     }
 }
 
-// Draw dynamic galaxy background
+// Draw static background once, then composite dynamic elements
 function drawBackground(t) {
-    // Base gradient
-    const gradient = bgCtx.createRadialGradient(
-        width * 0.5, height * 0.5, 0,
-        width * 0.5, height * 0.5, max(width, height) * 0.8
-    );
-    gradient.addColorStop(0, '#0d0d18');
-    gradient.addColorStop(0.4, '#070710');
-    gradient.addColorStop(1, '#020204');
-    bgCtx.fillStyle = gradient;
-    bgCtx.fillRect(0, 0, width, height);
-    
-    // Animated nebula clouds
-    const nebulaTime = t * 0.0004;
-    const intensity = CONFIG.BACKGROUND.NEBULA_INTENSITY;
-    
-    // Nebula 1 - Deep purple, slowly drifting
-    const n1x = width * (0.3 + sin(nebulaTime) * 0.15);
-    const n1y = height * (0.35 + cos(nebulaTime * 0.7) * 0.1);
-    const nebula1 = bgCtx.createRadialGradient(n1x, n1y, 0, n1x, n1y, width * 0.55);
-    nebula1.addColorStop(0, `rgba(90, 40, 140, ${intensity * 0.35})`);
-    nebula1.addColorStop(0.3, `rgba(50, 25, 90, ${intensity * 0.2})`);
-    nebula1.addColorStop(0.6, `rgba(30, 15, 60, ${intensity * 0.1})`);
-    nebula1.addColorStop(1, 'rgba(0, 0, 0, 0)');
-    bgCtx.fillStyle = nebula1;
-    bgCtx.fillRect(0, 0, width, height);
-    
-    // Nebula 2 - Teal/cyan, opposite drift
-    const n2x = width * (0.7 + cos(nebulaTime * 0.8) * 0.12);
-    const n2y = height * (0.55 + sin(nebulaTime * 0.6) * 0.15);
-    const nebula2 = bgCtx.createRadialGradient(n2x, n2y, 0, n2x, n2y, width * 0.45);
-    nebula2.addColorStop(0, `rgba(30, 100, 130, ${intensity * 0.3})`);
-    nebula2.addColorStop(0.4, `rgba(20, 60, 80, ${intensity * 0.15})`);
-    nebula2.addColorStop(1, 'rgba(0, 0, 0, 0)');
-    bgCtx.fillStyle = nebula2;
-    bgCtx.fillRect(0, 0, width, height);
-    
-    // Nebula 3 - Pink/magenta accent
-    const n3x = width * (0.5 + sin(nebulaTime * 1.1) * 0.2);
-    const n3y = height * (0.75 + cos(nebulaTime * 0.9) * 0.12);
-    const nebula3 = bgCtx.createRadialGradient(n3x, n3y, 0, n3x, n3y, width * 0.4);
-    nebula3.addColorStop(0, `rgba(120, 35, 80, ${intensity * 0.25})`);
-    nebula3.addColorStop(0.5, `rgba(70, 20, 50, ${intensity * 0.12})`);
-    nebula3.addColorStop(1, 'rgba(0, 0, 0, 0)');
-    bgCtx.fillStyle = nebula3;
-    bgCtx.fillRect(0, 0, width, height);
-    
-    // Draw pulsars (bright pulsing points)
-    for (const pulsar of pulsars) {
-        const pulse = (sin(t * pulsar.speed + pulsar.phase) * 0.5 + 0.5);
-        const size = pulsar.size * (0.5 + pulse * 1.5);
-        const alpha = 0.3 + pulse * 0.7;
+    // Static base - only redraw every 100ms for nebula drift
+    const now = performance.now();
+    if (now - lastBgUpdate > 100) {
+        lastBgUpdate = now;
         
-        const [r, g, b] = hsvToRgb(pulsar.color, 0.6, 1);
+        // Simple dark gradient base
+        bgCtx.fillStyle = '#050508';
+        bgCtx.fillRect(0, 0, width, height);
         
-        // Glow
-        const glow = bgCtx.createRadialGradient(pulsar.x, pulsar.y, 0, pulsar.x, pulsar.y, size * 8);
-        glow.addColorStop(0, `rgba(${floor(r*255)}, ${floor(g*255)}, ${floor(b*255)}, ${alpha * 0.4})`);
-        glow.addColorStop(0.3, `rgba(${floor(r*255)}, ${floor(g*255)}, ${floor(b*255)}, ${alpha * 0.15})`);
-        glow.addColorStop(1, 'rgba(0,0,0,0)');
-        bgCtx.fillStyle = glow;
-        bgCtx.fillRect(pulsar.x - size * 8, pulsar.y - size * 8, size * 16, size * 16);
+        // Pre-baked nebula effect - just colored circles with low alpha
+        const nebulaTime = t * 0.0004;
         
-        // Core
-        bgCtx.fillStyle = `rgba(255, 255, 255, ${alpha})`;
+        bgCtx.globalAlpha = 0.15;
+        bgCtx.fillStyle = '#4a1a6a';
         bgCtx.beginPath();
-        bgCtx.arc(pulsar.x, pulsar.y, size, 0, TAU);
+        bgCtx.arc(width * (0.3 + sin(nebulaTime) * 0.1), height * 0.35, width * 0.3, 0, TAU);
         bgCtx.fill();
+        
+        bgCtx.fillStyle = '#1a4a5a';
+        bgCtx.beginPath();
+        bgCtx.arc(width * (0.7 + cos(nebulaTime * 0.8) * 0.1), height * 0.6, width * 0.25, 0, TAU);
+        bgCtx.fill();
+        
+        bgCtx.fillStyle = '#5a1a3a';
+        bgCtx.beginPath();
+        bgCtx.arc(width * (0.5 + sin(nebulaTime * 1.1) * 0.15), height * 0.75, width * 0.2, 0, TAU);
+        bgCtx.fill();
+        
+        bgCtx.globalAlpha = 1;
     }
     
-    // Draw stars with varied twinkle
+    // Stars - simple rectangles instead of arcs (much faster)
     for (const star of stars) {
-        let alpha, size;
+        const twinkle = sin(t * star.twinkleSpeed + star.twinklePhase) * 0.3 + 0.7;
+        const alpha = star.brightness * twinkle;
+        bgCtx.fillStyle = `rgba(255,255,255,${alpha})`;
+        bgCtx.fillRect(star.x, star.y, star.size, star.size);
+    }
+    
+    // Pulsars - simple circles, no gradients
+    for (const pulsar of pulsars) {
+        const pulse = sin(t * pulsar.speed + pulsar.phase) * 0.5 + 0.5;
+        const size = pulsar.size * (0.6 + pulse);
+        const [r, g, b] = hsvToRgb(pulsar.hue, 0.5, 1);
         
-        if (star.isPulsar) {
-            // Dramatic pulsing stars
-            const pulse = sin(t * star.pulsarSpeed + star.pulsarPhase);
-            alpha = star.brightness * (0.4 + pulse * 0.6);
-            size = star.size * (0.8 + pulse * 0.4);
-        } else {
-            // Normal twinkling
-            const twinkle = sin(t * star.twinkleSpeed + star.twinklePhase) * 0.3 + 0.7;
-            alpha = star.brightness * twinkle;
-            size = star.size;
-        }
-        
-        bgCtx.fillStyle = `rgba(255, 255, 255, ${alpha})`;
+        bgCtx.fillStyle = `rgba(${floor(r*255)},${floor(g*255)},${floor(b*255)},${0.3 + pulse * 0.5})`;
         bgCtx.beginPath();
-        bgCtx.arc(star.x, star.y, size, 0, TAU);
+        bgCtx.arc(pulsar.x, pulsar.y, size * 2, 0, TAU);
+        bgCtx.fill();
+        
+        bgCtx.fillStyle = `rgba(255,255,255,${0.5 + pulse * 0.5})`;
+        bgCtx.beginPath();
+        bgCtx.arc(pulsar.x, pulsar.y, size * 0.5, 0, TAU);
         bgCtx.fill();
     }
     
-    // Draw shooting stars
+    // Shooting stars - simple lines
     updateShootingStars(t);
     for (const star of shootingStars) {
         const progress = star.life / star.maxLife;
-        const fadeIn = min(progress * 5, 1);
-        const fadeOut = 1 - pow(progress, 2);
-        const alpha = star.brightness * fadeIn * fadeOut;
+        const alpha = star.brightness * min(progress * 4, 1) * (1 - progress * progress);
         
-        const tailX = star.x - cos(star.angle) * star.length;
-        const tailY = star.y - sin(star.angle) * star.length;
-        
-        const grad = bgCtx.createLinearGradient(tailX, tailY, star.x, star.y);
-        grad.addColorStop(0, `rgba(255, 255, 255, 0)`);
-        grad.addColorStop(0.7, `rgba(200, 220, 255, ${alpha * 0.5})`);
-        grad.addColorStop(1, `rgba(255, 255, 255, ${alpha})`);
-        
-        bgCtx.strokeStyle = grad;
-        bgCtx.lineWidth = 2;
-        bgCtx.lineCap = 'round';
+        bgCtx.strokeStyle = `rgba(255,255,255,${alpha})`;
+        bgCtx.lineWidth = 1.5;
         bgCtx.beginPath();
-        bgCtx.moveTo(tailX, tailY);
+        bgCtx.moveTo(star.x - cos(star.angle) * star.length, star.y - sin(star.angle) * star.length);
         bgCtx.lineTo(star.x, star.y);
         bgCtx.stroke();
-        
-        // Bright head
-        bgCtx.fillStyle = `rgba(255, 255, 255, ${alpha})`;
-        bgCtx.beginPath();
-        bgCtx.arc(star.x, star.y, 2, 0, TAU);
-        bgCtx.fill();
     }
 }
 
