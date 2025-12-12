@@ -166,7 +166,7 @@
 const CONFIG = {
     TIME_SCALE: 1.0,
     AUTO_CYCLE: false,
-    AUTO_CYCLE_INTERVAL: 150000, // 2.5 minutes
+    AUTO_CYCLE_INTERVAL: 150000,
     COLOR: {
         SPEED: 0.06,
         SATURATION: 0.85,
@@ -184,7 +184,7 @@ const CONFIG = {
     MOTION: {
         CHAOS: 0.0,
         BREATHING: 0.0,
-        WAVE_INTENSITY: 0.7  // Reduced from 1.0
+        WAVE_INTENSITY: 0.7
     },
     SPIRAL: {
         ROTATION_SPEED: 0.00125,
@@ -194,8 +194,8 @@ const CONFIG = {
     },
     MOUSE: {
         INFLUENCE_RADIUS: 0.22,
-        PUSH_STRENGTH: 0.025,  // Stronger
-        HUE_SHIFT: 0.35        // Much more apparent
+        PUSH_STRENGTH: 0.025,
+        HUE_SHIFT: 0.35
     },
     BACKGROUND: {
         NEBULA_INTENSITY: 0.5,
@@ -204,7 +204,7 @@ const CONFIG = {
         PULSAR_COUNT: 3
     },
     TRANSITION: {
-        DURATION: 2.0  // Seconds to tween between patterns
+        DURATION: 2.0
     }
 };
 
@@ -266,7 +266,6 @@ window.addEventListener('resize', resize);
 let stars = [];
 let pulsars = [];
 let shootingStars = [];
-let bgImageData = null;
 let lastBgUpdate = 0;
 
 function generateStars() {
@@ -323,18 +322,14 @@ function updateShootingStars(t) {
     }
 }
 
-// Draw static background once, then composite dynamic elements
 function drawBackground(t) {
-    // Static base - only redraw every 100ms for nebula drift
     const now = performance.now();
     if (now - lastBgUpdate > 100) {
         lastBgUpdate = now;
         
-        // Simple dark gradient base
         bgCtx.fillStyle = '#050508';
         bgCtx.fillRect(0, 0, width, height);
         
-        // Pre-baked nebula effect - just colored circles with low alpha
         const nebulaTime = t * 0.0004;
         
         bgCtx.globalAlpha = 0.15;
@@ -356,7 +351,6 @@ function drawBackground(t) {
         bgCtx.globalAlpha = 1;
     }
     
-    // Stars - simple rectangles instead of arcs (much faster)
     for (const star of stars) {
         const twinkle = sin(t * star.twinkleSpeed + star.twinklePhase) * 0.3 + 0.7;
         const alpha = star.brightness * twinkle;
@@ -364,7 +358,6 @@ function drawBackground(t) {
         bgCtx.fillRect(star.x, star.y, star.size, star.size);
     }
     
-    // Pulsars - simple circles, no gradients
     for (const pulsar of pulsars) {
         const pulse = sin(t * pulsar.speed + pulsar.phase) * 0.5 + 0.5;
         const size = pulsar.size * (0.6 + pulse);
@@ -381,7 +374,6 @@ function drawBackground(t) {
         bgCtx.fill();
     }
     
-    // Shooting stars - simple lines
     updateShootingStars(t);
     for (const star of shootingStars) {
         const progress = star.life / star.maxLife;
@@ -425,9 +417,19 @@ let textFormationActive = false;
 let textFormationStart = 0;
 let currentTextTarget = 'SAT2';
 
-const TEXT_FORMATION_DURATION = 3.5;  // Slower fade in
-const TEXT_HOLD_DURATION = 4.0;       // Hold longer
-const TEXT_RELEASE_DURATION = 3.0;    // Slower fade out
+const TEXT_FORMATION_DURATION = 3.5;
+const TEXT_HOLD_DURATION = 4.0;
+const TEXT_RELEASE_DURATION = 3.0;
+
+// Mandala ring configuration for text formation
+const MANDALA_RING_CONFIG = {
+    ringCount: 3,           // Number of concentric rings
+    particlesPerRing: [24, 36, 48],  // Particles in each ring
+    baseRadius: [0.28, 0.38, 0.48],  // Radius of each ring (normalized)
+    rotationSpeed: [0.4, -0.3, 0.25], // Rotation speed (alternating directions)
+    pulseAmount: [0.03, 0.04, 0.05],  // How much the ring pulses
+    pulseSpeed: [1.5, 2.0, 1.2]       // Pulse frequency
+};
 
 function generateTextAndArrowPoints(text, numPoints) {
     const points = [];
@@ -445,18 +447,15 @@ function generateTextAndArrowPoints(text, numPoints) {
     tempCtx.textBaseline = 'middle';
     
     if (isMainText) {
-        // SAT2 text higher up
         tempCtx.fillText(text, tempCanvas.width / 2, tempCanvas.height * 0.35);
         
-        // Amazon smile - separate curved line
         tempCtx.beginPath();
         tempCtx.lineWidth = 24;
         tempCtx.lineCap = 'round';
         tempCtx.strokeStyle = '#fff';
         
-        // Smile curve - starts lower left, curves up to right
         const smileStartX = tempCanvas.width * 0.22;
-        const smileEndX = tempCanvas.width * 0.68;  // Ends before arrow
+        const smileEndX = tempCanvas.width * 0.68;
         const smileY = tempCanvas.height * 0.72;
         const smileCurve = 55;
         
@@ -467,19 +466,16 @@ function generateTextAndArrowPoints(text, numPoints) {
         );
         tempCtx.stroke();
         
-        // Arrow - separate, pointing up-right (like Amazon's >)
         const arrowX = tempCanvas.width * 0.74;
         const arrowY = smileY - smileCurve * 0.5;
         const arrowSize = 50;
         
         tempCtx.beginPath();
         tempCtx.lineWidth = 24;
-        // Arrow stem (short)
         tempCtx.moveTo(arrowX - arrowSize * 0.3, arrowY + arrowSize * 0.5);
         tempCtx.lineTo(arrowX + arrowSize * 0.5, arrowY - arrowSize * 0.3);
         tempCtx.stroke();
         
-        // Arrow head
         tempCtx.beginPath();
         tempCtx.moveTo(arrowX + arrowSize * 0.5, arrowY - arrowSize * 0.3);
         tempCtx.lineTo(arrowX, arrowY - arrowSize * 0.5);
@@ -490,7 +486,6 @@ function generateTextAndArrowPoints(text, numPoints) {
         tempCtx.lineTo(arrowX + arrowSize * 0.7, arrowY + arrowSize * 0.1);
         tempCtx.stroke();
     } else {
-        // TRDUTSCO - just text
         tempCtx.fillText(text, tempCanvas.width / 2, tempCanvas.height / 2);
     }
     
@@ -509,18 +504,44 @@ function generateTextAndArrowPoints(text, numPoints) {
                     x: (normalizedX - 0.5) * 0.9 + 0.5,
                     y: (normalizedY - 0.5) * 0.6 + 0.5,
                     depth: sin(normalizedX * PI) * 0.025,
-                    wave: random() * TAU
+                    wave: random() * TAU,
+                    type: 'text'
                 });
             }
         }
     }
     
-    for (let i = 0; i < numPoints; i++) {
+    // Calculate how many particles we need for mandala rings
+    const totalMandalaParticles = MANDALA_RING_CONFIG.particlesPerRing.reduce((a, b) => a + b, 0);
+    const textParticleCount = numPoints - totalMandalaParticles;
+    
+    // Assign text particles
+    for (let i = 0; i < textParticleCount; i++) {
         if (textPixels.length > 0) {
             const idx = floor(random() * textPixels.length);
             points.push({ ...textPixels[idx] });
         } else {
-            points.push({ x: 0.5, y: 0.5, depth: 0, wave: 0 });
+            points.push({ x: 0.5, y: 0.5, depth: 0, wave: 0, type: 'text' });
+        }
+    }
+    
+    // Assign mandala ring particles
+    let particleIndex = 0;
+    for (let ring = 0; ring < MANDALA_RING_CONFIG.ringCount; ring++) {
+        const particlesInRing = MANDALA_RING_CONFIG.particlesPerRing[ring];
+        for (let i = 0; i < particlesInRing; i++) {
+            const angle = (i / particlesInRing) * TAU;
+            points.push({
+                type: 'mandala',
+                ring: ring,
+                baseAngle: angle,
+                baseRadius: MANDALA_RING_CONFIG.baseRadius[ring],
+                rotationSpeed: MANDALA_RING_CONFIG.rotationSpeed[ring],
+                pulseAmount: MANDALA_RING_CONFIG.pulseAmount[ring],
+                pulseSpeed: MANDALA_RING_CONFIG.pulseSpeed[ring],
+                wave: random() * TAU
+            });
+            particleIndex++;
         }
     }
     
@@ -538,20 +559,17 @@ function triggerTextFormation(text = 'SAT2') {
 }
 
 function handleClick(e) {
-    // Ignore clicks on control buttons
     if (e.target.classList.contains('control-btn')) return;
     
     const now = Date.now();
     clickTimes.push(now);
     
-    // Keep only clicks in last 600ms
     clickTimes = clickTimes.filter(t => now - t < 600);
     
     if (clickTimes.length >= 3) {
         clickTimes = [];
         triggerTextFormation('TRDUTSCO');
     } else {
-        // Delay single click to check for triple
         setTimeout(() => {
             if (clickTimes.length > 0 && clickTimes.length < 3) {
                 const timeSinceLast = Date.now() - clickTimes[clickTimes.length - 1];
@@ -588,15 +606,13 @@ function createElements(count) {
             sizeVariation: 0.85 + random() * 0.3,
             data: {},
             prevData: {},
-            // Store previous position for smooth transitions
             prevPos: { x: 0.5, y: 0.5, rotation: 0, scale: 0.5 }
         });
     }
 }
 
-// Draw triangle - optimized stroke
 function drawTriangle(x, y, size, rotation, hue, alpha) {
-    if (size < 1 || alpha < 0.01) return;  // Skip tiny/invisible
+    if (size < 1 || alpha < 0.01) return;
     
     ctx.save();
     ctx.translate(x, y);
@@ -622,7 +638,7 @@ function drawTriangle(x, y, size, rotation, hue, alpha) {
     ctx.restore();
 }
 
-// Pattern definitions - improved to match Roblox quality
+// Pattern definitions
 const PATTERNS = {
     storm: {
         name: "Particle Storm",
@@ -645,7 +661,6 @@ const PATTERNS = {
         update: (el, t, count, cfg) => {
             const d = el.data;
             
-            // Initial chaos only at the very start (first 8 seconds)
             const initialChaos = t < 8 ? 1 - smoothstep(t / 8) : 0;
             
             const cycleTime = 45;
@@ -672,7 +687,6 @@ const PATTERNS = {
                 formationAmount = 1;
             }
             
-            // Override with initial chaos
             if (initialChaos > 0) {
                 formationAmount = formationAmount * (1 - initialChaos);
             }
@@ -727,7 +741,6 @@ const PATTERNS = {
             d.x = lerp(d.x, targetX, lerpStrength);
             d.y = lerp(d.y, targetY, lerpStrength);
             
-            // Soft wrap
             if (d.x < -0.1) d.x = 1.1;
             if (d.x > 1.1) d.x = -0.1;
             if (d.y < -0.1) d.y = 1.1;
@@ -877,11 +890,9 @@ const PATTERNS = {
             const d = el.data;
             const intensity = clamp(cfg.MOTION.WAVE_INTENSITY, 0, 1.0);
             
-            // More complex, interesting flow
             const flowX = sin(t * 0.12 + d.gridY * 3) * 0.07 * intensity;
             const flowY = cos(t * 0.12 + d.gridX * 3) * 0.07 * intensity;
             
-            // Secondary wave
             const wave2X = sin(t * 0.2 + d.gridX * 5 + d.gridY * 2) * 0.025 * intensity;
             const wave2Y = cos(t * 0.2 + d.gridY * 5 + d.gridX * 2) * 0.025 * intensity;
             
@@ -1005,7 +1016,6 @@ const PATTERNS = {
             const dx2 = d.baseX - 0.7, dy2 = d.baseY - 0.5;
             const dist2 = sqrt(dx2*dx2 + dy2*dy2);
             
-            // Reduced intensity
             const intensity = cfg.MOTION.WAVE_INTENSITY * 0.6;
             const wave1 = sin(t * 2.5 - dist1 * 15) * intensity;
             const wave2 = sin(t * 2.5 - dist2 * 15 + PI/3) * intensity;
@@ -1155,20 +1165,18 @@ const PATTERNS = {
 const patternKeys = Object.keys(PATTERNS);
 
 // Performance detection and lite mode
-let liteMode = 'auto'; // 'auto', 'on', 'off'
+let liteMode = 'auto';
 let frameTimings = [];
 let performanceCheckDone = false;
 
 const FULL_ELEMENT_COUNT = 2000;
 const LITE_ELEMENT_COUNT = 800;
 
-// Immediate device capability detection - run BEFORE anything else
 const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
 const isSmallScreen = window.innerWidth < 1024 || window.innerHeight < 700;
 const isMobile = /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 const isLowPower = navigator.hardwareConcurrency ? navigator.hardwareConcurrency <= 4 : false;
 
-// Start in lite mode for mobile/touch/small screens
 let isLiteModeActive = isMobile || (isTouchDevice && isSmallScreen) || isLowPower;
 
 if (isLiteModeActive) {
@@ -1183,13 +1191,11 @@ function getElementCount() {
 function checkPerformance() {
     if (performanceCheckDone || liteMode !== 'auto') return;
     
-    // Check after just 20 frames (~0.3 seconds)
     if (frameTimings.length >= 20) {
         const avgFrameTime = frameTimings.reduce((a, b) => a + b, 0) / frameTimings.length;
         const fps = 1000 / avgFrameTime;
         
         if (fps < 40) {
-            // Poor performance, switch to lite mode
             console.log(`⚡ Auto-enabling Lite mode (detected ${fps.toFixed(1)} FPS)`);
             isLiteModeActive = true;
             reinitializeElements();
@@ -1256,7 +1262,6 @@ function switchPattern(index, smooth = true) {
     const count = getElementCount();
     
     if (smooth) {
-        // Capture current positions BEFORE changing anything
         const currentPattern = PATTERNS[patternKeys[currentPatternIndex]];
         const t = performance.now() / 1000 * CONFIG.TIME_SCALE;
         
@@ -1276,7 +1281,6 @@ function switchPattern(index, smooth = true) {
     
     currentPatternIndex = newIndex;
     
-    // Initialize new pattern data but keep prevPos
     const newPattern = PATTERNS[patternKeys[currentPatternIndex]];
     elements.forEach(el => {
         newPattern.init(el, count);
@@ -1354,7 +1358,7 @@ function toggleAutoCycle() {
     }
 }
 
-// Mouse influence with stronger effect
+// Mouse influence
 function getMouseInfluence(posX, posY) {
     if (!mouse.active) return { push: { x: 0, y: 0 }, hueShift: 0 };
     
@@ -1377,11 +1381,10 @@ function getMouseInfluence(posX, posY) {
 }
 
 // Main render loop
-const BASE_SIZE = 28; // Fixed base size for all patterns
+const BASE_SIZE = 28;
 let lastFrameTime = 0;
 
 function render(timestamp) {
-    // Performance tracking
     if (lastFrameTime > 0) {
         const frameTime = timestamp - lastFrameTime;
         frameTimings.push(frameTime);
@@ -1392,16 +1395,13 @@ function render(timestamp) {
     
     const t = (timestamp / 1000) * CONFIG.TIME_SCALE;
     
-    // Smooth mouse tracking
     mouse.x = lerp(mouse.x, targetMouse.x, 0.1);
     mouse.y = lerp(mouse.y, targetMouse.y, 0.1);
     
-    // Draw background (skip some frames in lite mode)
     if (!isLiteModeActive || timestamp % 2 < 1) {
         drawBackground(t);
     }
     
-    // Clear main canvas
     ctx.clearRect(0, 0, width, height);
     
     const pattern = PATTERNS[patternKeys[currentPatternIndex]];
@@ -1409,7 +1409,6 @@ function render(timestamp) {
     const basePulse = 1 + sin(t * CONFIG.VISUAL.PULSE_SPEED) * CONFIG.VISUAL.PULSE_AMOUNT;
     const globalTwinkle = sin(t * CONFIG.VISUAL.TWINKLE_SPEED * 0.5) * 0.5 + 0.5;
     
-    // Update transition progress
     if (transitionProgress < 1) {
         const elapsed = timestamp / 1000 - transitionStartTime;
         transitionProgress = min(1, elapsed / CONFIG.TRANSITION.DURATION);
@@ -1439,7 +1438,6 @@ function render(timestamp) {
         const el = elements[i];
         let pos = pattern.update(el, t, count, CONFIG);
         
-        // Blend with previous pattern during transition
         if (transitionProgress < 1 && el.prevPos) {
             pos = {
                 x: lerp(el.prevPos.x, pos.x, transitionEase),
@@ -1449,36 +1447,81 @@ function render(timestamp) {
             };
         }
         
-        // Blend with text position if active
+        // Blend with text/mandala position if active
         if (textBlend > 0 && textPoints[i]) {
             const pt = textPoints[i];
-            const waveOffset = sin(t * 1.5 + pt.wave) * 0.006 * textBlend;
-            const depthOffset = pt.depth * sin(t * 1.2) * textBlend;
             
-            pos = {
-                x: lerp(pos.x, pt.x + waveOffset, textBlend),
-                y: lerp(pos.y, pt.y + depthOffset, textBlend),
-                scale: lerp(pos.scale, 0.16, textBlend),
-                // Gentle rotation when formed - NOT spinning fast
-                rotation: lerp(pos.rotation, sin(t * 0.5 + pt.wave) * 8, textBlend)
-            };
+            if (pt.type === 'mandala') {
+                // Mandala ring particle - orbit around center
+                const ringTime = t * pt.rotationSpeed;
+                const currentAngle = pt.baseAngle + ringTime;
+                const pulse = sin(t * pt.pulseSpeed + pt.baseAngle) * pt.pulseAmount;
+                const currentRadius = pt.baseRadius + pulse;
+                
+                // Add some wobble/shimmer to make it more interesting
+                const shimmer = sin(t * 3 + pt.baseAngle * 3) * 0.008;
+                const verticalWobble = cos(t * 2.5 + pt.baseAngle * 2) * 0.01;
+                
+                const mandalaX = 0.5 + cos(currentAngle) * (currentRadius + shimmer);
+                const mandalaY = 0.5 + sin(currentAngle) * (currentRadius + shimmer) + verticalWobble;
+                
+                // Mandala particles spin faster
+                const mandalaRotation = currentAngle * 80 + t * 60 + pt.ring * 30;
+                
+                // Scale based on ring - outer rings slightly smaller
+                const mandalaScale = 0.25 - pt.ring * 0.03 + sin(t * 2 + pt.baseAngle) * 0.08;
+                
+                pos = {
+                    x: lerp(pos.x, mandalaX, textBlend),
+                    y: lerp(pos.y, mandalaY, textBlend),
+                    scale: lerp(pos.scale, mandalaScale, textBlend),
+                    rotation: lerp(pos.rotation, mandalaRotation, textBlend)
+                };
+            } else {
+                // Text particle - original behavior
+                const waveOffset = sin(t * 1.5 + pt.wave) * 0.006 * textBlend;
+                const depthOffset = pt.depth * sin(t * 1.2) * textBlend;
+                
+                pos = {
+                    x: lerp(pos.x, pt.x + waveOffset, textBlend),
+                    y: lerp(pos.y, pt.y + depthOffset, textBlend),
+                    scale: lerp(pos.scale, 0.16, textBlend),
+                    rotation: lerp(pos.rotation, sin(t * 0.5 + pt.wave) * 8, textBlend)
+                };
+            }
         }
         
-        // Get mouse influence
         const mouseEffect = getMouseInfluence(pos.x, pos.y);
         pos.x += mouseEffect.push.x;
         pos.y += mouseEffect.push.y;
         
-        // Base hue + mouse hue shift
-        let hue = (t * CONFIG.COLOR.SPEED + CONFIG.COLOR.HUE_OFFSET + (i / count) * CONFIG.COLOR.RAINBOW_SPREAD + el.colorOffset) % 1;
+        // Calculate hue - mandala particles get special rainbow treatment during text formation
+        let hue;
+        if (textBlend > 0 && textPoints[i] && textPoints[i].type === 'mandala') {
+            const pt = textPoints[i];
+            // Mandala rings get a beautiful rainbow effect based on angle
+            const ringHue = (pt.baseAngle / TAU + t * 0.1 + pt.ring * 0.15) % 1;
+            hue = lerp(
+                (t * CONFIG.COLOR.SPEED + CONFIG.COLOR.HUE_OFFSET + (i / count) * CONFIG.COLOR.RAINBOW_SPREAD + el.colorOffset) % 1,
+                ringHue,
+                textBlend
+            );
+        } else {
+            hue = (t * CONFIG.COLOR.SPEED + CONFIG.COLOR.HUE_OFFSET + (i / count) * CONFIG.COLOR.RAINBOW_SPREAD + el.colorOffset) % 1;
+        }
         hue = (hue + mouseEffect.hueShift) % 1;
         
-        // Effects
         const twinkle = 1 - ((sin(t * CONFIG.VISUAL.TWINKLE_SPEED + el.twinklePhase) * 0.5 + 0.5) * globalTwinkle * CONFIG.VISUAL.TWINKLE_AMOUNT);
         let finalScale = clamp(pos.scale * el.sizeVariation * basePulse, 0.15, 1.5);
-        const alpha = clamp(CONFIG.VISUAL.BASE_ALPHA * twinkle, 0.2, 1.0);
         
-        // Draw
+        // Mandala particles glow brighter during formation
+        let alpha;
+        if (textBlend > 0 && textPoints[i] && textPoints[i].type === 'mandala') {
+            alpha = clamp(CONFIG.VISUAL.BASE_ALPHA * twinkle * (1 + textBlend * 0.3), 0.2, 1.0);
+        } else {
+            alpha = clamp(CONFIG.VISUAL.BASE_ALPHA * twinkle, 0.2, 1.0);
+        }
+        
         drawTriangle(
             pos.x * width,
             pos.y * height,
@@ -1528,7 +1571,6 @@ document.querySelectorAll('.control-btn').forEach(btn => {
     });
 });
 
-// Keyboard controls
 document.addEventListener('keydown', (e) => {
     switch(e.key.toLowerCase()) {
         case ' ':
@@ -1559,7 +1601,6 @@ document.addEventListener('keydown', (e) => {
     }
 });
 
-// Initialize with Particle Storm (index 0)
 initPattern(patternKeys[0]);
 updateLiteButton();
 requestAnimationFrame(render);
