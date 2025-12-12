@@ -1170,12 +1170,12 @@ function getElementCount() {
 function checkPerformance() {
     if (performanceCheckDone || liteMode !== 'auto') return;
     
-    // Need at least 60 frames to judge
-    if (frameTimings.length >= 60) {
+    // Check after just 20 frames (~0.3 seconds)
+    if (frameTimings.length >= 20) {
         const avgFrameTime = frameTimings.reduce((a, b) => a + b, 0) / frameTimings.length;
         const fps = 1000 / avgFrameTime;
         
-        if (fps < 30) {
+        if (fps < 40) {
             // Poor performance, switch to lite mode
             console.log(`⚡ Auto-enabling Lite mode (detected ${fps.toFixed(1)} FPS)`);
             isLiteModeActive = true;
