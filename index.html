@@ -1156,37 +1156,23 @@ const patternKeys = Object.keys(PATTERNS);
 
 // Performance detection and lite mode
 let liteMode = 'auto'; // 'auto', 'on', 'off'
-let isLiteModeActive = false;
 let frameTimings = [];
 let performanceCheckDone = false;
 
 const FULL_ELEMENT_COUNT = 2000;
 const LITE_ELEMENT_COUNT = 800;
 
-// Immediate device capability detection
-function detectLowEndDevice() {
-    // Mobile/tablet detection
-    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-    
-    // Low core count
-    const lowCores = navigator.hardwareConcurrency && navigator.hardwareConcurrency <= 4;
-    
-    // Low memory (if available)
-    const lowMemory = navigator.deviceMemory && navigator.deviceMemory <= 4;
-    
-    // Small screen often means mobile
-    const smallScreen = window.innerWidth < 768 || window.innerHeight < 600;
-    
-    // Touch-only device (likely mobile)
-    const touchOnly = 'ontouchstart' in window && !window.matchMedia('(pointer: fine)').matches;
-    
-    return isMobile || (lowCores && lowMemory) || (smallScreen && touchOnly);
-}
+// Immediate device capability detection - run BEFORE anything else
+const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+const isSmallScreen = window.innerWidth < 1024 || window.innerHeight < 700;
+const isMobile = /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+const isLowPower = navigator.hardwareConcurrency ? navigator.hardwareConcurrency <= 4 : false;
 
-// Run immediately
-if (liteMode === 'auto' && detectLowEndDevice()) {
-    console.log('⚡ Low-end device detected, starting in Lite mode');
-    isLiteModeActive = true;
+// Start in lite mode for mobile/touch/small screens
+let isLiteModeActive = isMobile || (isTouchDevice && isSmallScreen) || isLowPower;
+
+if (isLiteModeActive) {
+    console.log('⚡ Starting in Lite mode (mobile/touch/low-power detected)');
     performanceCheckDone = true;
 }
 
