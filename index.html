@@ -620,7 +620,7 @@ function drawTriangle(x, y, size, rotation, hue, alpha) {
     ctx.globalAlpha = alpha;
     
     const s = size;
-    const lineWidth = s * 0.18;
+    const lineWidth = s * 0.25;  // Thicker stroke! Was 0.18
     
     const [r, g, b] = hsvToRgb(hue, CONFIG.COLOR.SATURATION, CONFIG.COLOR.VALUE);
     ctx.strokeStyle = `rgb(${floor(r * 255)}, ${floor(g * 255)}, ${floor(b * 255)})`;
@@ -1168,19 +1168,18 @@ const patternKeys = Object.keys(PATTERNS);
 let liteMode = 'auto';
 let frameTimings = [];
 let performanceCheckDone = false;
+let badFrameCount = 0;
 
 const FULL_ELEMENT_COUNT = 2000;
 const LITE_ELEMENT_COUNT = 800;
 
-const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
-const isSmallScreen = window.innerWidth < 1024 || window.innerHeight < 700;
-const isMobile = /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-const isLowPower = navigator.hardwareConcurrency ? navigator.hardwareConcurrency <= 4 : false;
+// Only pre-detect for actual mobile phones
+const isMobilePhone = /iPhone|Android.*Mobile|Mobile.*Android/i.test(navigator.userAgent);
 
-let isLiteModeActive = isMobile || (isTouchDevice && isSmallScreen) || isLowPower;
+let isLiteModeActive = isMobilePhone;
 
 if (isLiteModeActive) {
-    console.log('⚡ Starting in Lite mode (mobile/touch/low-power detected)');
+    console.log('⚡ Starting in Lite mode (mobile phone detected)');
     performanceCheckDone = true;
 }
 
@@ -1191,19 +1190,27 @@ function getElementCount() {
 function checkPerformance() {
     if (performanceCheckDone || liteMode !== 'auto') return;
     
-    if (frameTimings.length >= 20) {
+    // Check every 10 frames
+    if (frameTimings.length >= 10) {
         const avgFrameTime = frameTimings.reduce((a, b) => a + b, 0) / frameTimings.length;
         const fps = 1000 / avgFrameTime;
         
-        if (fps < 40) {
-            console.log(`⚡ Auto-enabling Lite mode (detected ${fps.toFixed(1)} FPS)`);
-            isLiteModeActive = true;
-            reinitializeElements();
-            updateLiteButton();
+        if (fps < 25) {
+            badFrameCount++;
+            // Trigger after 2 consecutive bad checks (20 frames of bad performance)
+            if (badFrameCount >= 2) {
+                console.log(`⚡ Auto-enabling Lite mode (detected ${fps.toFixed(1)} FPS)`);
+                isLiteModeActive = true;
+                reinitializeElements();
+                updateLiteButton();
+                performanceCheckDone = true;
+            }
         } else {
+            // Good performance - we're done checking
             console.log(`✨ Performance OK (${fps.toFixed(1)} FPS)`);
+            performanceCheckDone = true;
         }
-        performanceCheckDone = true;
+        frameTimings = []; // Reset for next check
     }
 }
 
@@ -1469,7 +1476,7 @@ function render(timestamp) {
                 const mandalaRotation = currentAngle * 80 + t * 60 + pt.ring * 30;
                 
                 // Scale based on ring - outer rings slightly smaller
-                const mandalaScale = 0.25 - pt.ring * 0.03 + sin(t * 2 + pt.baseAngle) * 0.08;
+                const mandalaScale = 0.35 - pt.ring * 0.03 + sin(t * 2 + pt.baseAngle) * 0.08;
                 
                 pos = {
                     x: lerp(pos.x, mandalaX, textBlend),
@@ -1478,14 +1485,14 @@ function render(timestamp) {
                     rotation: lerp(pos.rotation, mandalaRotation, textBlend)
                 };
             } else {
-                // Text particle - original behavior
-                const waveOffset = sin(t * 1.5 + pt.wave) * 0.006 * textBlend;
+                // Text particle - BIGGER and BOLDER
+                const waveOffset = sin(t * 1.5 + pt.wave) * 0.004 * textBlend;
                 const depthOffset = pt.depth * sin(t * 1.2) * textBlend;
                 
                 pos = {
                     x: lerp(pos.x, pt.x + waveOffset, textBlend),
                     y: lerp(pos.y, pt.y + depthOffset, textBlend),
-                    scale: lerp(pos.scale, 0.16, textBlend),
+                    scale: lerp(pos.scale, 0.38, textBlend),  // Much bigger! Was 0.16
                     rotation: lerp(pos.rotation, sin(t * 0.5 + pt.wave) * 8, textBlend)
                 };
             }
