@@ -1163,6 +1163,33 @@ let performanceCheckDone = false;
 const FULL_ELEMENT_COUNT = 2000;
 const LITE_ELEMENT_COUNT = 800;
 
+// Immediate device capability detection
+function detectLowEndDevice() {
+    // Mobile/tablet detection
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    
+    // Low core count
+    const lowCores = navigator.hardwareConcurrency && navigator.hardwareConcurrency <= 4;
+    
+    // Low memory (if available)
+    const lowMemory = navigator.deviceMemory && navigator.deviceMemory <= 4;
+    
+    // Small screen often means mobile
+    const smallScreen = window.innerWidth < 768 || window.innerHeight < 600;
+    
+    // Touch-only device (likely mobile)
+    const touchOnly = 'ontouchstart' in window && !window.matchMedia('(pointer: fine)').matches;
+    
+    return isMobile || (lowCores && lowMemory) || (smallScreen && touchOnly);
+}
+
+// Run immediately
+if (liteMode === 'auto' && detectLowEndDevice()) {
+    console.log('⚡ Low-end device detected, starting in Lite mode');
+    isLiteModeActive = true;
+    performanceCheckDone = true;
+}
+
 function getElementCount() {
     return isLiteModeActive ? LITE_ELEMENT_COUNT : FULL_ELEMENT_COUNT;
 }
@@ -1548,6 +1575,7 @@ document.addEventListener('keydown', (e) => {
 
 // Initialize with Particle Storm (index 0)
 initPattern(patternKeys[0]);
+updateLiteButton();
 requestAnimationFrame(render);
 console.log("✨ Visualizer ready! Press L for Lite mode if performance is poor");
     </script>
