@@ -435,38 +435,59 @@ function generateTextAndArrowPoints(text, numPoints) {
     const points = [];
     const tempCanvas = document.createElement('canvas');
     const tempCtx = tempCanvas.getContext('2d');
-    tempCanvas.width = 1200;
+    tempCanvas.width = 1400;  // Wider to accommodate spacing
     tempCanvas.height = 600;
     
     const isMainText = text === 'SAT2';
-    const fontSize = isMainText ? 320 : 180;
+    const fontSize = isMainText ? 300 : 160;
+    const letterSpacing = isMainText ? 35 : 25;  // Extra pixels between letters
     
     tempCtx.fillStyle = '#fff';
     tempCtx.font = `bold ${fontSize}px "Outfit", sans-serif`;
-    tempCtx.textAlign = 'center';
     tempCtx.textBaseline = 'middle';
     
+    // Draw text with letter spacing by rendering each character
+    function drawSpacedText(str, centerX, centerY) {
+        // Measure total width with spacing
+        let totalWidth = 0;
+        for (let i = 0; i < str.length; i++) {
+            totalWidth += tempCtx.measureText(str[i]).width;
+            if (i < str.length - 1) totalWidth += letterSpacing;
+        }
+        
+        // Draw each character
+        let x = centerX - totalWidth / 2;
+        for (let i = 0; i < str.length; i++) {
+            const char = str[i];
+            const charWidth = tempCtx.measureText(char).width;
+            tempCtx.fillText(char, x + charWidth / 2, centerY);
+            x += charWidth + letterSpacing;
+        }
+    }
+    
+    tempCtx.textAlign = 'center';
+    
     if (isMainText) {
-        tempCtx.fillText(text, tempCanvas.width / 2, tempCanvas.height * 0.35);
+        drawSpacedText(text, tempCanvas.width / 2, tempCanvas.height * 0.35);
         
         tempCtx.beginPath();
         tempCtx.lineWidth = 24;
         tempCtx.lineCap = 'round';
         tempCtx.strokeStyle = '#fff';
         
-        const smileStartX = tempCanvas.width * 0.22;
-        const smileEndX = tempCanvas.width * 0.68;
+        const smileStartX = tempCanvas.width * 0.20;
+        const smileEndX = tempCanvas.width * 0.65;
         const smileY = tempCanvas.height * 0.72;
         const smileCurve = 55;
         
         tempCtx.moveTo(smileStartX, smileY);
         tempCtx.quadraticCurveTo(
-            tempCanvas.width * 0.45, smileY + smileCurve,
+            tempCanvas.width * 0.42, smileY + smileCurve,
             smileEndX, smileY - smileCurve * 0.3
         );
         tempCtx.stroke();
         
-        const arrowX = tempCanvas.width * 0.74;
+        const arrowX = tempCanvas.width * 0.71;
         const arrowY = smileY - smileCurve * 0.5;
         const arrowSize = 50;
         
@@ -486,7 +507,7 @@ function generateTextAndArrowPoints(text, numPoints) {
         tempCtx.lineTo(arrowX + arrowSize * 0.7, arrowY + arrowSize * 0.1);
         tempCtx.stroke();
     } else {
-        tempCtx.fillText(text, tempCanvas.width / 2, tempCanvas.height / 2);
+        drawSpacedText(text, tempCanvas.width / 2, tempCanvas.height / 2);
     }
     
     const imageData = tempCtx.getImageData(0, 0, tempCanvas.width, tempCanvas.height);
@@ -501,7 +522,7 @@ function generateTextAndArrowPoints(text, numPoints) {
                 const normalizedX = x / tempCanvas.width;
                 const normalizedY = y / tempCanvas.height;
                 textPixels.push({
-                    x: (normalizedX - 0.5) * 0.9 + 0.5,
+                    x: (normalizedX - 0.5) * 0.95 + 0.5,
                     y: (normalizedY - 0.5) * 0.6 + 0.5,
                     depth: sin(normalizedX * PI) * 0.025,
                     wave: random() * TAU,
@@ -1485,14 +1506,17 @@ function render(timestamp) {
                     rotation: lerp(pos.rotation, mandalaRotation, textBlend)
                 };
             } else {
-                // Text particle - BIGGER and BOLDER
+                // Text particle - size depends on which text
                 const waveOffset = sin(t * 1.5 + pt.wave) * 0.004 * textBlend;
                 const depthOffset = pt.depth * sin(t * 1.2) * textBlend;
+                
+                // SAT2 gets bigger triangles, TRDUTSCO gets 25% smaller
+                const textScale = currentTextTarget === 'SAT2' ? 0.38 : 0.28;
                 
                 pos = {
                     x: lerp(pos.x, pt.x + waveOffset, textBlend),
                     y: lerp(pos.y, pt.y + depthOffset, textBlend),
-                    scale: lerp(pos.scale, 0.38, textBlend),  // Much bigger! Was 0.16
+                    scale: lerp(pos.scale, textScale, textBlend),
                     rotation: lerp(pos.rotation, sin(t * 0.5 + pt.wave) * 8, textBlend)
                 };
             }
