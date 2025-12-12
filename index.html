@@ -82,6 +82,21 @@
             border-color: rgba(100,150,255,0.5);
         }
         
+        .hotkey {
+            display: inline-block;
+            padding: 1px 5px;
+            margin-right: 4px;
+            background: rgba(255,255,255,0.15);
+            border-radius: 3px;
+            font-size: 10px;
+            font-weight: 500;
+            opacity: 0.8;
+        }
+        
+        @media (max-width: 768px), (hover: none) {
+            .hotkey { display: none; }
+        }
+        
         #pattern-name {
             position: fixed; 
             top: 32px; 
@@ -123,27 +138,26 @@
     <div id="pattern-name"></div>
     <div id="info">
         <div>
-            <span class="control-btn" data-action="next">Next</span>
-            <span class="control-btn" data-action="wildcard">Wildcard</span>
-            <span class="control-btn" data-action="hide">Hide UI</span>
+            <span class="control-btn" data-action="next"><span class="hotkey">Space</span> Next</span>
+            <span class="control-btn" data-action="wildcard"><span class="hotkey">W</span> Wildcard</span>
+            <span class="control-btn" data-action="hide"><span class="hotkey">H</span> Hide UI</span>
             <span class="control-btn" data-action="sat2">SAT2</span>
         </div>
         <div style="margin-top: 6px;">
-            <span class="control-btn" data-action="auto" id="auto-btn">Auto: OFF</span>
-            <span class="control-btn" data-action="pattern" data-pattern="0">1</span>
-            <span class="control-btn" data-action="pattern" data-pattern="1">2</span>
-            <span class="control-btn" data-action="pattern" data-pattern="2">3</span>
-            <span class="control-btn" data-action="pattern" data-pattern="3">4</span>
-            <span class="control-btn" data-action="pattern" data-pattern="4">5</span>
+            <span class="control-btn" data-action="auto" id="auto-btn"><span class="hotkey">A</span> Auto: OFF</span>
+            <span class="control-btn" data-action="pattern" data-pattern="0"><span class="hotkey">1</span></span>
+            <span class="control-btn" data-action="pattern" data-pattern="1"><span class="hotkey">2</span></span>
+            <span class="control-btn" data-action="pattern" data-pattern="2"><span class="hotkey">3</span></span>
+            <span class="control-btn" data-action="pattern" data-pattern="3"><span class="hotkey">4</span></span>
+            <span class="control-btn" data-action="pattern" data-pattern="4"><span class="hotkey">5</span></span>
         </div>
         <div style="margin-top: 6px;">
-            <span class="control-btn" data-action="pattern" data-pattern="5">6</span>
-            <span class="control-btn" data-action="pattern" data-pattern="6">7</span>
-            <span class="control-btn" data-action="pattern" data-pattern="7">8</span>
-            <span class="control-btn" data-action="pattern" data-pattern="8">9</span>
-            <span class="control-btn" data-action="pattern" data-pattern="9">10</span>
-            <span class="control-btn" data-action="pattern" data-pattern="10">11</span>
-            <span class="control-btn" data-action="pattern" data-pattern="11">12</span>
+            <span class="control-btn" data-action="pattern" data-pattern="5"><span class="hotkey">6</span></span>
+            <span class="control-btn" data-action="pattern" data-pattern="6"><span class="hotkey">7</span></span>
+            <span class="control-btn" data-action="pattern" data-pattern="7"><span class="hotkey">8</span></span>
+            <span class="control-btn" data-action="pattern" data-pattern="8"><span class="hotkey">9</span></span>
+            <span class="control-btn" data-action="pattern" data-pattern="9"><span class="hotkey">0</span></span>
+            <span class="control-btn" data-action="lite" id="lite-btn">Lite: AUTO</span>
         </div>
     </div>
     <div class="mouse-hint">Click for SAT2 • Triple-click for TRDUTSCO</div>
@@ -1140,17 +1154,84 @@ const PATTERNS = {
 
 const patternKeys = Object.keys(PATTERNS);
 
-// Use a fixed element count for smooth transitions
-const FIXED_ELEMENT_COUNT = 2000;
+// Performance detection and lite mode
+let liteMode = 'auto'; // 'auto', 'on', 'off'
+let isLiteModeActive = false;
+let frameTimings = [];
+let performanceCheckDone = false;
+
+const FULL_ELEMENT_COUNT = 2000;
+const LITE_ELEMENT_COUNT = 800;
+
+function getElementCount() {
+    return isLiteModeActive ? LITE_ELEMENT_COUNT : FULL_ELEMENT_COUNT;
+}
+
+function checkPerformance() {
+    if (performanceCheckDone || liteMode !== 'auto') return;
+    
+    // Need at least 60 frames to judge
+    if (frameTimings.length >= 60) {
+        const avgFrameTime = frameTimings.reduce((a, b) => a + b, 0) / frameTimings.length;
+        const fps = 1000 / avgFrameTime;
+        
+        if (fps < 30) {
+            // Poor performance, switch to lite mode
+            console.log(`⚡ Auto-enabling Lite mode (detected ${fps.toFixed(1)} FPS)`);
+            isLiteModeActive = true;
+            reinitializeElements();
+            updateLiteButton();
+        } else {
+            console.log(`✨ Performance OK (${fps.toFixed(1)} FPS)`);
+        }
+        performanceCheckDone = true;
+    }
+}
+
+function toggleLiteMode() {
+    if (liteMode === 'auto') {
+        liteMode = 'on';
+        isLiteModeActive = true;
+    } else if (liteMode === 'on') {
+        liteMode = 'off';
+        isLiteModeActive = false;
+    } else {
+        liteMode = 'auto';
+        isLiteModeActive = false;
+        performanceCheckDone = false;
+        frameTimings = [];
+    }
+    reinitializeElements();
+    updateLiteButton();
+}
+
+function updateLiteButton() {
+    const btn = document.getElementById('lite-btn');
+    if (btn) {
+        if (liteMode === 'auto') {
+            btn.textContent = `Lite: AUTO${isLiteModeActive ? ' (ON)' : ''}`;
+        } else {
+            btn.textContent = `Lite: ${liteMode.toUpperCase()}`;
+        }
+        btn.classList.toggle('active', isLiteModeActive);
+    }
+}
+
+function reinitializeElements() {
+    const count = getElementCount();
+    const pattern = PATTERNS[patternKeys[currentPatternIndex]];
+    createElements(count);
+    elements.forEach(el => pattern.init(el, count));
+}
 
 function initPattern(patternKey) {
     const pattern = PATTERNS[patternKey];
-    // Always use fixed count for consistency
-    if (elements.length !== FIXED_ELEMENT_COUNT) {
-        createElements(FIXED_ELEMENT_COUNT);
+    const count = getElementCount();
+    if (elements.length !== count) {
+        createElements(count);
     }
     elements.forEach(el => {
-        pattern.init(el, FIXED_ELEMENT_COUNT);
+        pattern.init(el, count);
     });
 }
 
@@ -1159,13 +1240,15 @@ function switchPattern(index, smooth = true) {
     
     if (newIndex === currentPatternIndex) return;
     
+    const count = getElementCount();
+    
     if (smooth) {
         // Capture current positions BEFORE changing anything
         const currentPattern = PATTERNS[patternKeys[currentPatternIndex]];
         const t = performance.now() / 1000 * CONFIG.TIME_SCALE;
         
         elements.forEach((el, i) => {
-            const pos = currentPattern.update(el, t, FIXED_ELEMENT_COUNT, CONFIG);
+            const pos = currentPattern.update(el, t, count, CONFIG);
             el.prevPos = { 
                 x: pos.x, 
                 y: pos.y, 
@@ -1183,7 +1266,7 @@ function switchPattern(index, smooth = true) {
     // Initialize new pattern data but keep prevPos
     const newPattern = PATTERNS[patternKeys[currentPatternIndex]];
     elements.forEach(el => {
-        newPattern.init(el, FIXED_ELEMENT_COUNT);
+        newPattern.init(el, count);
     });
     
     showPatternName(newPattern.name);
@@ -1282,22 +1365,34 @@ function getMouseInfluence(posX, posY) {
 
 // Main render loop
 const BASE_SIZE = 28; // Fixed base size for all patterns
+let lastFrameTime = 0;
 
 function render(timestamp) {
+    // Performance tracking
+    if (lastFrameTime > 0) {
+        const frameTime = timestamp - lastFrameTime;
+        frameTimings.push(frameTime);
+        if (frameTimings.length > 120) frameTimings.shift();
+        checkPerformance();
+    }
+    lastFrameTime = timestamp;
+    
     const t = (timestamp / 1000) * CONFIG.TIME_SCALE;
     
     // Smooth mouse tracking
     mouse.x = lerp(mouse.x, targetMouse.x, 0.1);
     mouse.y = lerp(mouse.y, targetMouse.y, 0.1);
     
-    // Draw background
-    drawBackground(t);
+    // Draw background (skip some frames in lite mode)
+    if (!isLiteModeActive || timestamp % 2 < 1) {
+        drawBackground(t);
+    }
     
     // Clear main canvas
     ctx.clearRect(0, 0, width, height);
     
     const pattern = PATTERNS[patternKeys[currentPatternIndex]];
-    const count = FIXED_ELEMENT_COUNT;
+    const count = elements.length;
     const basePulse = 1 + sin(t * CONFIG.VISUAL.PULSE_SPEED) * CONFIG.VISUAL.PULSE_AMOUNT;
     const globalTwinkle = sin(t * CONFIG.VISUAL.TWINKLE_SPEED * 0.5) * 0.5 + 0.5;
     
@@ -1410,6 +1505,9 @@ document.querySelectorAll('.control-btn').forEach(btn => {
             case 'auto':
                 toggleAutoCycle();
                 break;
+            case 'lite':
+                toggleLiteMode();
+                break;
             case 'pattern':
                 switchPattern(parseInt(btn.dataset.pattern), true);
                 break;
@@ -1435,6 +1533,9 @@ document.addEventListener('keydown', (e) => {
         case 'a':
             toggleAutoCycle();
             break;
+        case 'l':
+            toggleLiteMode();
+            break;
         case 'p':
             console.log('Current CONFIG:', JSON.stringify(CONFIG, null, 2));
             break;
@@ -1448,7 +1549,7 @@ document.addEventListener('keydown', (e) => {
 // Initialize with Particle Storm (index 0)
 initPattern(patternKeys[0]);
 requestAnimationFrame(render);
-console.log("✨ Visualizer ready! Particle Storm first, 12 patterns total");
+console.log("✨ Visualizer ready! Press L for Lite mode if performance is poor");
     </script>
 </body>
 </html>
