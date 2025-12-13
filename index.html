@@ -138,86 +138,44 @@
     <div id="pattern-name"></div>
     <div id="info">
         <div>
-            <span class="control-btn" data-action="next"><span class="hotkey">Space</span> Next</span>
+            <span class="control-btn" data-action="prev"><span class="hotkey">←</span> Prev</span>
+            <span class="control-btn" data-action="next"><span class="hotkey">→</span> Next</span>
+            <span class="control-btn" data-action="random"><span class="hotkey">R</span> Random</span>
             <span class="control-btn" data-action="wildcard"><span class="hotkey">W</span> Wildcard</span>
-            <span class="control-btn" data-action="hide"><span class="hotkey">H</span> Hide UI</span>
-            <span class="control-btn" data-action="sat2">SAT2</span>
         </div>
         <div style="margin-top: 6px;">
             <span class="control-btn" data-action="auto" id="auto-btn"><span class="hotkey">A</span> Auto: OFF</span>
-            <span class="control-btn" data-action="pattern" data-pattern="0"><span class="hotkey">1</span></span>
-            <span class="control-btn" data-action="pattern" data-pattern="1"><span class="hotkey">2</span></span>
-            <span class="control-btn" data-action="pattern" data-pattern="2"><span class="hotkey">3</span></span>
-            <span class="control-btn" data-action="pattern" data-pattern="3"><span class="hotkey">4</span></span>
-            <span class="control-btn" data-action="pattern" data-pattern="4"><span class="hotkey">5</span></span>
-        </div>
-        <div style="margin-top: 6px;">
-            <span class="control-btn" data-action="pattern" data-pattern="5"><span class="hotkey">6</span></span>
-            <span class="control-btn" data-action="pattern" data-pattern="6"><span class="hotkey">7</span></span>
-            <span class="control-btn" data-action="pattern" data-pattern="7"><span class="hotkey">8</span></span>
-            <span class="control-btn" data-action="pattern" data-pattern="8"><span class="hotkey">9</span></span>
-            <span class="control-btn" data-action="pattern" data-pattern="9"><span class="hotkey">0</span></span>
+            <span class="control-btn" data-action="sat2">SAT2</span>
+            <span class="control-btn" data-action="hide"><span class="hotkey">H</span> Hide UI</span>
             <span class="control-btn" data-action="lite" id="lite-btn">Lite: AUTO</span>
         </div>
     </div>
     <div class="mouse-hint">Click for SAT2 • Triple-click for TRDUTSCO</div>
     
     <script>
-const CONFIG = {
-    TIME_SCALE: 1.0,
-    AUTO_CYCLE: false,
-    AUTO_CYCLE_INTERVAL: 150000,
-    COLOR: {
-        SPEED: 0.06,
-        SATURATION: 0.85,
-        VALUE: 0.95,
-        HUE_OFFSET: 0,
-        RAINBOW_SPREAD: 1.2
-    },
-    VISUAL: {
-        PULSE_SPEED: 0.4,
-        PULSE_AMOUNT: 0.12,
-        TWINKLE_SPEED: 2.5,
-        TWINKLE_AMOUNT: 0.15,
-        BASE_ALPHA: 0.75
-    },
-    MOTION: {
-        CHAOS: 0.0,
-        BREATHING: 0.0,
-        WAVE_INTENSITY: 0.7
-    },
-    SPIRAL: {
-        ROTATION_SPEED: 0.00125,
-        SPIRAL_FACTOR: 0.015,
-        WIGGLE_FREQ: 0.2,
-        WIGGLE_AMP: 0.2
-    },
-    MOUSE: {
-        INFLUENCE_RADIUS: 0.22,
-        PUSH_STRENGTH: 0.025,
-        HUE_SHIFT: 0.35
-    },
-    BACKGROUND: {
-        NEBULA_INTENSITY: 0.5,
-        STAR_COUNT: 150,
-        SHOOTING_STAR_CHANCE: 0.002,
-        PULSAR_COUNT: 3
-    },
-    TRANSITION: {
-        DURATION: 2.0
-    }
+// main config
+const cfg = {
+    timeScale: 1.0,
+    autoCycle: false,
+    cycleInterval: 150000,
+    color: { speed: 0.06, sat: 0.85, val: 0.95, hueOffset: 0, spread: 1.2 },
+    visual: { pulseSpeed: 0.4, pulseAmt: 0.12, twinkleSpeed: 2.5, twinkleAmt: 0.15, baseAlpha: 0.75 },
+    motion: { chaos: 0.0, breathing: 0.0, waveInt: 0.7 },
+    spiral: { rotSpeed: 0.00125, factor: 0.015, wiggleFreq: 0.2, wiggleAmp: 0.2 },
+    mouse: { radius: 0.22, push: 0.025, hueShift: 0.35 },
+    bg: { nebulaInt: 0.5, starCount: 150, shootingChance: 0.002, pulsarCount: 3 },
+    transition: { dur: 2.0 }
 };
 
 const { sin, cos, sqrt, floor, random, PI, pow, min, max, abs, atan2 } = Math;
 const TAU = PI * 2;
-const PHI = 1.618033988749;
+const lerp = (a, b, t) => a + (b - a) * t;
+const clamp = (v, lo, hi) => min(max(v, lo), hi);
+const smoothstep = t => t * t * (3 - 2 * t);
+const easeInOut = t => t < 0.5 ? 4 * t * t * t : 1 - pow(-2 * t + 2, 3) / 2;
 
-function lerp(a, b, t) { return a + (b - a) * t; }
-function clamp(v, mn, mx) { return min(max(v, mn), mx); }
-function smoothstep(t) { return t * t * (3 - 2 * t); }
-function easeInOutCubic(t) { return t < 0.5 ? 4 * t * t * t : 1 - pow(-2 * t + 2, 3) / 2; }
-
-function hsvToRgb(h, s, v) {
+// hsv to rgb - standard algorithm
+function hsv2rgb(h, s, v) {
     h = ((h % 1) + 1) % 1;
     const i = floor(h * 6), f = h * 6 - i;
     const p = v * (1 - s), q = v * (1 - f * s), t = v * (1 - (1 - f) * s);
@@ -227,1415 +185,611 @@ function hsvToRgb(h, s, v) {
     }
 }
 
-function roundTo(v, d = 3) { const m = pow(10, d); return Math.round(v * m) / m; }
+const round3 = (v, d = 3) => { const m = pow(10, d); return Math.round(v * m) / m; };
 
-// Canvases
 const bgCanvas = document.getElementById('bg-canvas');
 const bgCtx = bgCanvas.getContext('2d');
 const mainCanvas = document.getElementById('main-canvas');
 const ctx = mainCanvas.getContext('2d');
 
-let width, height, minDim, scale;
+let w, h, minDim, scale;
 
 function resize() {
     const dpr = min(window.devicePixelRatio || 1, 2);
-    width = window.innerWidth;
-    height = window.innerHeight;
-    
-    bgCanvas.width = width * dpr;
-    bgCanvas.height = height * dpr;
-    bgCanvas.style.width = width + 'px';
-    bgCanvas.style.height = height + 'px';
+    w = window.innerWidth; h = window.innerHeight;
+    bgCanvas.width = w * dpr; bgCanvas.height = h * dpr;
+    bgCanvas.style.width = w + 'px'; bgCanvas.style.height = h + 'px';
     bgCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    
-    mainCanvas.width = width * dpr;
-    mainCanvas.height = height * dpr;
-    mainCanvas.style.width = width + 'px';
-    mainCanvas.style.height = height + 'px';
+    mainCanvas.width = w * dpr; mainCanvas.height = h * dpr;
+    mainCanvas.style.width = w + 'px'; mainCanvas.style.height = h + 'px';
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    
-    minDim = min(width, height);
-    scale = minDim / 800;
-    
-    generateStars();
-    generatePulsars();
+    minDim = min(w, h); scale = minDim / 800;
+    makeStars(); makePulsars();
 }
 window.addEventListener('resize', resize);
 
-// Background elements
-let stars = [];
-let pulsars = [];
-let shootingStars = [];
-let lastBgUpdate = 0;
+let stars = [], pulsars = [], shootingStars = [], lastBgDraw = 0;
 
-function generateStars() {
+function makeStars() {
     stars = [];
-    for (let i = 0; i < CONFIG.BACKGROUND.STAR_COUNT; i++) {
-        stars.push({
-            x: random() * width,
-            y: random() * height,
-            size: random() * 1.5 + 0.5,
-            brightness: random() * 0.5 + 0.2,
-            twinkleSpeed: random() * 2 + 0.5,
-            twinklePhase: random() * TAU
-        });
+    for (let i = 0; i < cfg.bg.starCount; i++) {
+        stars.push({ x: random() * w, y: random() * h, size: random() * 1.5 + 0.5,
+            bright: random() * 0.5 + 0.2, twinkleSpd: random() * 2 + 0.5, twinkleOff: random() * TAU });
     }
 }
 
-function generatePulsars() {
+function makePulsars() {
     pulsars = [];
-    for (let i = 0; i < CONFIG.BACKGROUND.PULSAR_COUNT; i++) {
-        pulsars.push({
-            x: random() * width,
-            y: random() * height,
-            size: random() * 2 + 1.5,
-            speed: random() * 1.5 + 0.5,
-            phase: random() * TAU,
-            hue: random()
-        });
+    for (let i = 0; i < cfg.bg.pulsarCount; i++) {
+        pulsars.push({ x: random() * w, y: random() * h, size: random() * 2 + 1.5,
+            spd: random() * 1.5 + 0.5, phase: random() * TAU, hue: random() });
     }
 }
 
-function updateShootingStars(t) {
-    if (random() < CONFIG.BACKGROUND.SHOOTING_STAR_CHANCE) {
-        shootingStars.push({
-            x: random() * width * 1.2 - width * 0.1,
-            y: -20,
-            angle: PI * 0.15 + random() * PI * 0.2,
-            speed: 400 + random() * 300,
-            length: 80 + random() * 100,
-            life: 0,
-            maxLife: 1.5 + random(),
-            brightness: 0.6 + random() * 0.4
-        });
+function tickShootingStars(t) {
+    if (random() < cfg.bg.shootingChance) {
+        shootingStars.push({ x: random() * w * 1.2 - w * 0.1, y: -20,
+            angle: PI * 0.15 + random() * PI * 0.2, spd: 400 + random() * 300,
+            len: 80 + random() * 100, life: 0, maxLife: 1.5 + random(), bright: 0.6 + random() * 0.4 });
     }
-    
     for (let i = shootingStars.length - 1; i >= 0; i--) {
-        const star = shootingStars[i];
-        star.life += 1/60;
-        star.x += cos(star.angle) * star.speed / 60;
-        star.y += sin(star.angle) * star.speed / 60;
-        
-        if (star.life > star.maxLife || star.y > height + 100) {
-            shootingStars.splice(i, 1);
-        }
+        const s = shootingStars[i];
+        s.life += 1/60; s.x += cos(s.angle) * s.spd / 60; s.y += sin(s.angle) * s.spd / 60;
+        if (s.life > s.maxLife || s.y > h + 100) shootingStars.splice(i, 1);
     }
 }
 
-function drawBackground(t) {
+function drawBg(t) {
     const now = performance.now();
-    if (now - lastBgUpdate > 100) {
-        lastBgUpdate = now;
-        
-        bgCtx.fillStyle = '#050508';
-        bgCtx.fillRect(0, 0, width, height);
-        
-        const nebulaTime = t * 0.0004;
-        
+    if (now - lastBgDraw > 100) {
+        lastBgDraw = now;
+        bgCtx.fillStyle = '#050508'; bgCtx.fillRect(0, 0, w, h);
+        const nt = t * 0.0004;
         bgCtx.globalAlpha = 0.15;
-        bgCtx.fillStyle = '#4a1a6a';
-        bgCtx.beginPath();
-        bgCtx.arc(width * (0.3 + sin(nebulaTime) * 0.1), height * 0.35, width * 0.3, 0, TAU);
-        bgCtx.fill();
-        
-        bgCtx.fillStyle = '#1a4a5a';
-        bgCtx.beginPath();
-        bgCtx.arc(width * (0.7 + cos(nebulaTime * 0.8) * 0.1), height * 0.6, width * 0.25, 0, TAU);
-        bgCtx.fill();
-        
-        bgCtx.fillStyle = '#5a1a3a';
-        bgCtx.beginPath();
-        bgCtx.arc(width * (0.5 + sin(nebulaTime * 1.1) * 0.15), height * 0.75, width * 0.2, 0, TAU);
-        bgCtx.fill();
-        
+        bgCtx.fillStyle = '#4a1a6a'; bgCtx.beginPath();
+        bgCtx.arc(w * (0.3 + sin(nt) * 0.1), h * 0.35, w * 0.3, 0, TAU); bgCtx.fill();
+        bgCtx.fillStyle = '#1a4a5a'; bgCtx.beginPath();
+        bgCtx.arc(w * (0.7 + cos(nt * 0.8) * 0.1), h * 0.6, w * 0.25, 0, TAU); bgCtx.fill();
+        bgCtx.fillStyle = '#5a1a3a'; bgCtx.beginPath();
+        bgCtx.arc(w * (0.5 + sin(nt * 1.1) * 0.15), h * 0.75, w * 0.2, 0, TAU); bgCtx.fill();
         bgCtx.globalAlpha = 1;
     }
-    
     for (const star of stars) {
-        const twinkle = sin(t * star.twinkleSpeed + star.twinklePhase) * 0.3 + 0.7;
-        const alpha = star.brightness * twinkle;
-        bgCtx.fillStyle = `rgba(255,255,255,${alpha})`;
+        const twinkle = sin(t * star.twinkleSpd + star.twinkleOff) * 0.3 + 0.7;
+        bgCtx.fillStyle = `rgba(255,255,255,${star.bright * twinkle})`;
         bgCtx.fillRect(star.x, star.y, star.size, star.size);
     }
-    
-    for (const pulsar of pulsars) {
-        const pulse = sin(t * pulsar.speed + pulsar.phase) * 0.5 + 0.5;
-        const size = pulsar.size * (0.6 + pulse);
-        const [r, g, b] = hsvToRgb(pulsar.hue, 0.5, 1);
-        
+    for (const p of pulsars) {
+        const pulse = sin(t * p.spd + p.phase) * 0.5 + 0.5;
+        const sz = p.size * (0.6 + pulse);
+        const [r, g, b] = hsv2rgb(p.hue, 0.5, 1);
         bgCtx.fillStyle = `rgba(${floor(r*255)},${floor(g*255)},${floor(b*255)},${0.3 + pulse * 0.5})`;
-        bgCtx.beginPath();
-        bgCtx.arc(pulsar.x, pulsar.y, size * 2, 0, TAU);
-        bgCtx.fill();
-        
+        bgCtx.beginPath(); bgCtx.arc(p.x, p.y, sz * 2, 0, TAU); bgCtx.fill();
         bgCtx.fillStyle = `rgba(255,255,255,${0.5 + pulse * 0.5})`;
-        bgCtx.beginPath();
-        bgCtx.arc(pulsar.x, pulsar.y, size * 0.5, 0, TAU);
-        bgCtx.fill();
+        bgCtx.beginPath(); bgCtx.arc(p.x, p.y, sz * 0.5, 0, TAU); bgCtx.fill();
     }
-    
-    updateShootingStars(t);
-    for (const star of shootingStars) {
-        const progress = star.life / star.maxLife;
-        const alpha = star.brightness * min(progress * 4, 1) * (1 - progress * progress);
-        
-        bgCtx.strokeStyle = `rgba(255,255,255,${alpha})`;
-        bgCtx.lineWidth = 1.5;
-        bgCtx.beginPath();
-        bgCtx.moveTo(star.x - cos(star.angle) * star.length, star.y - sin(star.angle) * star.length);
-        bgCtx.lineTo(star.x, star.y);
-        bgCtx.stroke();
+    tickShootingStars(t);
+    for (const s of shootingStars) {
+        const prog = s.life / s.maxLife;
+        const a = s.bright * min(prog * 4, 1) * (1 - prog * prog);
+        bgCtx.strokeStyle = `rgba(255,255,255,${a})`; bgCtx.lineWidth = 1.5;
+        bgCtx.beginPath(); bgCtx.moveTo(s.x - cos(s.angle) * s.len, s.y - sin(s.angle) * s.len);
+        bgCtx.lineTo(s.x, s.y); bgCtx.stroke();
     }
 }
 
 resize();
 
-// Mouse tracking
-let mouse = { x: 0.5, y: 0.5, active: false };
-let targetMouse = { x: 0.5, y: 0.5 };
-
-document.addEventListener('mousemove', (e) => {
-    targetMouse.x = e.clientX / width;
-    targetMouse.y = e.clientY / height;
-    mouse.active = true;
-});
-
+let mouse = { x: 0.5, y: 0.5, active: false }, mouseTarget = { x: 0.5, y: 0.5 };
+document.addEventListener('mousemove', e => { mouseTarget.x = e.clientX / w; mouseTarget.y = e.clientY / h; mouse.active = true; });
 document.addEventListener('mouseleave', () => { mouse.active = false; });
-
-document.addEventListener('touchmove', (e) => {
-    const touch = e.touches[0];
-    targetMouse.x = touch.clientX / width;
-    targetMouse.y = touch.clientY / height;
-    mouse.active = true;
-}, { passive: true });
-
+document.addEventListener('touchmove', e => { const touch = e.touches[0]; mouseTarget.x = touch.clientX / w; mouseTarget.y = touch.clientY / h; mouse.active = true; }, { passive: true });
 document.addEventListener('touchend', () => { mouse.active = false; });
 
-// Click detection for SAT2 / TRDUTSCO
-let clickTimes = [];
-let textFormationActive = false;
-let textFormationStart = 0;
-let currentTextTarget = 'SAT2';
+let clickTimes = [], textActive = false, textStart = 0, textTarget = 'SAT2';
+const TEXT_FORM_DUR = 3.5, TEXT_HOLD_DUR = 4.0, TEXT_RELEASE_DUR = 3.0;
 
-const TEXT_FORMATION_DURATION = 3.5;
-const TEXT_HOLD_DURATION = 4.0;
-const TEXT_RELEASE_DURATION = 3.0;
+const mandalaRings = { count: 3, perRing: [24, 36, 48], radius: [0.28, 0.38, 0.48],
+    rotSpd: [0.4, -0.3, 0.25], pulseAmt: [0.03, 0.04, 0.05], pulseSpd: [1.5, 2.0, 1.2] };
 
-// Mandala ring configuration for text formation
-const MANDALA_RING_CONFIG = {
-    ringCount: 3,           // Number of concentric rings
-    particlesPerRing: [24, 36, 48],  // Particles in each ring
-    baseRadius: [0.28, 0.38, 0.48],  // Radius of each ring (normalized)
-    rotationSpeed: [0.4, -0.3, 0.25], // Rotation speed (alternating directions)
-    pulseAmount: [0.03, 0.04, 0.05],  // How much the ring pulses
-    pulseSpeed: [1.5, 2.0, 1.2]       // Pulse frequency
-};
-
-function generateTextAndArrowPoints(text, numPoints) {
-    const points = [];
-    const tempCanvas = document.createElement('canvas');
-    const tempCtx = tempCanvas.getContext('2d');
-    tempCanvas.width = 1400;  // Wider to accommodate spacing
-    tempCanvas.height = 600;
+function genTextPoints(text, numPts) {
+    const pts = [], tmp = document.createElement('canvas'), tmpCtx = tmp.getContext('2d');
+    tmp.width = 1400; tmp.height = 600;
+    const isMain = text === 'SAT2', fontSize = isMain ? 300 : 160, spacing = isMain ? 35 : 25;
+    tmpCtx.fillStyle = '#fff'; tmpCtx.font = `bold ${fontSize}px "Outfit", sans-serif`;
+    tmpCtx.textBaseline = 'middle'; tmpCtx.textAlign = 'center';
     
-    const isMainText = text === 'SAT2';
-    const fontSize = isMainText ? 300 : 160;
-    const letterSpacing = isMainText ? 35 : 25;  // Extra pixels between letters
-    
-    tempCtx.fillStyle = '#fff';
-    tempCtx.font = `bold ${fontSize}px "Outfit", sans-serif`;
-    tempCtx.textBaseline = 'middle';
-    
-    // Draw text with letter spacing by rendering each character
-    function drawSpacedText(str, centerX, centerY) {
-        // Measure total width with spacing
-        let totalWidth = 0;
-        for (let i = 0; i < str.length; i++) {
-            totalWidth += tempCtx.measureText(str[i]).width;
-            if (i < str.length - 1) totalWidth += letterSpacing;
-        }
-        
-        // Draw each character
-        let x = centerX - totalWidth / 2;
-        for (let i = 0; i < str.length; i++) {
-            const char = str[i];
-            const charWidth = tempCtx.measureText(char).width;
-            tempCtx.fillText(char, x + charWidth / 2, centerY);
-            x += charWidth + letterSpacing;
-        }
+    function drawSpaced(str, cx, cy) {
+        let totalW = 0;
+        for (let i = 0; i < str.length; i++) { totalW += tmpCtx.measureText(str[i]).width; if (i < str.length - 1) totalW += spacing; }
+        let x = cx - totalW / 2;
+        for (let i = 0; i < str.length; i++) { const ch = str[i], chW = tmpCtx.measureText(ch).width; tmpCtx.fillText(ch, x + chW / 2, cy); x += chW + spacing; }
     }
     
-    tempCtx.textAlign = 'center';
+    if (isMain) {
+        drawSpaced(text, tmp.width / 2, tmp.height * 0.35);
+        tmpCtx.beginPath(); tmpCtx.lineWidth = 24; tmpCtx.lineCap = 'round'; tmpCtx.strokeStyle = '#fff';
+        const smileX1 = tmp.width * 0.20, smileX2 = tmp.width * 0.65, smileY = tmp.height * 0.72, curve = 55;
+        tmpCtx.moveTo(smileX1, smileY); tmpCtx.quadraticCurveTo(tmp.width * 0.42, smileY + curve, smileX2, smileY - curve * 0.3); tmpCtx.stroke();
+        const arrX = tmp.width * 0.71, arrY = smileY - curve * 0.5, arrSz = 50;
+        tmpCtx.beginPath(); tmpCtx.lineWidth = 24; tmpCtx.moveTo(arrX - arrSz * 0.3, arrY + arrSz * 0.5); tmpCtx.lineTo(arrX + arrSz * 0.5, arrY - arrSz * 0.3); tmpCtx.stroke();
+        tmpCtx.beginPath(); tmpCtx.moveTo(arrX + arrSz * 0.5, arrY - arrSz * 0.3); tmpCtx.lineTo(arrX, arrY - arrSz * 0.5); tmpCtx.stroke();
+        tmpCtx.beginPath(); tmpCtx.moveTo(arrX + arrSz * 0.5, arrY - arrSz * 0.3); tmpCtx.lineTo(arrX + arrSz * 0.7, arrY + arrSz * 0.1); tmpCtx.stroke();
+    } else { drawSpaced(text, tmp.width / 2, tmp.height / 2); }
     
-    if (isMainText) {
-        drawSpacedText(text, tempCanvas.width / 2, tempCanvas.height * 0.35);
-        
-        tempCtx.beginPath();
-        tempCtx.lineWidth = 24;
-        tempCtx.lineCap = 'round';
-        tempCtx.strokeStyle = '#fff';
-        
-        const smileStartX = tempCanvas.width * 0.20;
-        const smileEndX = tempCanvas.width * 0.65;
-        const smileY = tempCanvas.height * 0.72;
-        const smileCurve = 55;
-        
-        tempCtx.moveTo(smileStartX, smileY);
-        tempCtx.quadraticCurveTo(
-            tempCanvas.width * 0.42, smileY + smileCurve,
-            smileEndX, smileY - smileCurve * 0.3
-        );
-        tempCtx.stroke();
-        
-        const arrowX = tempCanvas.width * 0.71;
-        const arrowY = smileY - smileCurve * 0.5;
-        const arrowSize = 50;
-        
-        tempCtx.beginPath();
-        tempCtx.lineWidth = 24;
-        tempCtx.moveTo(arrowX - arrowSize * 0.3, arrowY + arrowSize * 0.5);
-        tempCtx.lineTo(arrowX + arrowSize * 0.5, arrowY - arrowSize * 0.3);
-        tempCtx.stroke();
-        
-        tempCtx.beginPath();
-        tempCtx.moveTo(arrowX + arrowSize * 0.5, arrowY - arrowSize * 0.3);
-        tempCtx.lineTo(arrowX, arrowY - arrowSize * 0.5);
-        tempCtx.stroke();
-        
-        tempCtx.beginPath();
-        tempCtx.moveTo(arrowX + arrowSize * 0.5, arrowY - arrowSize * 0.3);
-        tempCtx.lineTo(arrowX + arrowSize * 0.7, arrowY + arrowSize * 0.1);
-        tempCtx.stroke();
-    } else {
-        drawSpacedText(text, tempCanvas.width / 2, tempCanvas.height / 2);
-    }
-    
-    const imageData = tempCtx.getImageData(0, 0, tempCanvas.width, tempCanvas.height);
-    const pixels = imageData.data;
-    
-    const textPixels = [];
-    const step = 2;
-    for (let y = 0; y < tempCanvas.height; y += step) {
-        for (let x = 0; x < tempCanvas.width; x += step) {
-            const i = (y * tempCanvas.width + x) * 4;
-            if (pixels[i + 3] > 128) {
-                const normalizedX = x / tempCanvas.width;
-                const normalizedY = y / tempCanvas.height;
-                textPixels.push({
-                    x: (normalizedX - 0.5) * 0.95 + 0.5,
-                    y: (normalizedY - 0.5) * 0.6 + 0.5,
-                    depth: sin(normalizedX * PI) * 0.025,
-                    wave: random() * TAU,
-                    type: 'text'
-                });
-            }
+    const imgData = tmpCtx.getImageData(0, 0, tmp.width, tmp.height), px = imgData.data, textPx = [], step = 2;
+    for (let y = 0; y < tmp.height; y += step) {
+        for (let x = 0; x < tmp.width; x += step) {
+            const i = (y * tmp.width + x) * 4;
+            if (px[i + 3] > 128) { const nx = x / tmp.width, ny = y / tmp.height;
+                textPx.push({ x: (nx - 0.5) * 0.95 + 0.5, y: (ny - 0.5) * 0.6 + 0.5, depth: sin(nx * PI) * 0.025, wave: random() * TAU, type: 'text' }); }
         }
     }
-    
-    // Calculate how many particles we need for mandala rings
-    const totalMandalaParticles = MANDALA_RING_CONFIG.particlesPerRing.reduce((a, b) => a + b, 0);
-    const textParticleCount = numPoints - totalMandalaParticles;
-    
-    // Assign text particles
-    for (let i = 0; i < textParticleCount; i++) {
-        if (textPixels.length > 0) {
-            const idx = floor(random() * textPixels.length);
-            points.push({ ...textPixels[idx] });
-        } else {
-            points.push({ x: 0.5, y: 0.5, depth: 0, wave: 0, type: 'text' });
-        }
-    }
-    
-    // Assign mandala ring particles
-    let particleIndex = 0;
-    for (let ring = 0; ring < MANDALA_RING_CONFIG.ringCount; ring++) {
-        const particlesInRing = MANDALA_RING_CONFIG.particlesPerRing[ring];
-        for (let i = 0; i < particlesInRing; i++) {
-            const angle = (i / particlesInRing) * TAU;
-            points.push({
-                type: 'mandala',
-                ring: ring,
-                baseAngle: angle,
-                baseRadius: MANDALA_RING_CONFIG.baseRadius[ring],
-                rotationSpeed: MANDALA_RING_CONFIG.rotationSpeed[ring],
-                pulseAmount: MANDALA_RING_CONFIG.pulseAmount[ring],
-                pulseSpeed: MANDALA_RING_CONFIG.pulseSpeed[ring],
-                wave: random() * TAU
-            });
-            particleIndex++;
-        }
-    }
-    
-    return points;
+    const totalMandala = mandalaRings.perRing.reduce((a, b) => a + b, 0), textCount = numPts - totalMandala;
+    for (let i = 0; i < textCount; i++) { if (textPx.length > 0) { pts.push({ ...textPx[floor(random() * textPx.length)] }); } else { pts.push({ x: 0.5, y: 0.5, depth: 0, wave: 0, type: 'text' }); } }
+    for (let ring = 0; ring < mandalaRings.count; ring++) { const n = mandalaRings.perRing[ring];
+        for (let i = 0; i < n; i++) { const angle = (i / n) * TAU;
+            pts.push({ type: 'mandala', ring, baseAngle: angle, baseRadius: mandalaRings.radius[ring], rotSpd: mandalaRings.rotSpd[ring], pulseAmt: mandalaRings.pulseAmt[ring], pulseSpd: mandalaRings.pulseSpd[ring], wave: random() * TAU }); } }
+    return pts;
 }
 
-let textPoints = [];
-
-function triggerTextFormation(text = 'SAT2') {
-    if (textFormationActive) return;
-    textFormationActive = true;
-    textFormationStart = performance.now() / 1000;
-    currentTextTarget = text;
-    textPoints = generateTextAndArrowPoints(text, elements.length);
-}
+let textPts = [];
+function triggerText(text = 'SAT2') { if (textActive) return; textActive = true; textStart = performance.now() / 1000; textTarget = text; textPts = genTextPoints(text, elements.length); }
 
 function handleClick(e) {
     if (e.target.classList.contains('control-btn')) return;
-    
-    const now = Date.now();
-    clickTimes.push(now);
-    
-    clickTimes = clickTimes.filter(t => now - t < 600);
-    
-    if (clickTimes.length >= 3) {
-        clickTimes = [];
-        triggerTextFormation('TRDUTSCO');
-    } else {
-        setTimeout(() => {
-            if (clickTimes.length > 0 && clickTimes.length < 3) {
-                const timeSinceLast = Date.now() - clickTimes[clickTimes.length - 1];
-                if (timeSinceLast > 300) {
-                    clickTimes = [];
-                    triggerTextFormation('SAT2');
-                }
-            }
-        }, 350);
-    }
+    const now = Date.now(); clickTimes.push(now); clickTimes = clickTimes.filter(t => now - t < 600);
+    if (clickTimes.length >= 3) { clickTimes = []; triggerText('TRDUTSCO'); }
+    else { setTimeout(() => { if (clickTimes.length > 0 && clickTimes.length < 3) { const since = Date.now() - clickTimes[clickTimes.length - 1]; if (since > 300) { clickTimes = []; triggerText('SAT2'); } } }, 350); }
 }
-
 document.addEventListener('click', handleClick);
-document.addEventListener('touchstart', (e) => {
-    if (e.target.classList.contains('control-btn')) return;
-    handleClick(e);
-}, { passive: true });
+document.addEventListener('touchstart', e => { if (e.target.classList.contains('control-btn')) return; handleClick(e); }, { passive: true });
 
-// Elements and patterns
-let elements = [];
-let currentPatternIndex = 0;
-let previousPatternIndex = -1;
-let transitionProgress = 1;
-let transitionStartTime = 0;
+let elements = [], curPattern = 0, transitionProg = 1, transitionStart = 0;
 
-function createElements(count) {
+function makeElements(count) {
     elements = [];
     for (let i = 0; i < count; i++) {
-        elements.push({
-            index: i,
-            phase: random() * TAU,
-            twinklePhase: random() * TAU,
-            colorOffset: random() * 0.1,
-            sizeVariation: 0.85 + random() * 0.3,
-            data: {},
-            prevData: {},
-            prevPos: { x: 0.5, y: 0.5, rotation: 0, scale: 0.5 }
-        });
+        elements.push({ idx: i, phase: random() * TAU, twinklePhase: random() * TAU, colorOff: random() * 0.1, sizeVar: 0.85 + random() * 0.3, data: {}, prevPos: { x: 0.5, y: 0.5, rot: 0, scale: 0.5 } });
     }
 }
 
-function drawTriangle(x, y, size, rotation, hue, alpha) {
+function drawTri(x, y, size, rot, hue, alpha, satOverride, valOverride) {
     if (size < 1 || alpha < 0.01) return;
-    
-    ctx.save();
-    ctx.translate(x, y);
-    ctx.rotate(rotation);
-    ctx.globalAlpha = alpha;
-    
-    const s = size;
-    const lineWidth = s * 0.25;  // Thicker stroke! Was 0.18
-    
-    const [r, g, b] = hsvToRgb(hue, CONFIG.COLOR.SATURATION, CONFIG.COLOR.VALUE);
+    ctx.save(); ctx.translate(x, y); ctx.rotate(rot); ctx.globalAlpha = alpha;
+    const s = size, lw = s * 0.25;
+    const sat = satOverride !== undefined ? satOverride : cfg.color.sat;
+    const val = valOverride !== undefined ? valOverride : cfg.color.val;
+    const [r, g, b] = hsv2rgb(hue, sat, val);
     ctx.strokeStyle = `rgb(${floor(r * 255)}, ${floor(g * 255)}, ${floor(b * 255)})`;
-    ctx.lineWidth = lineWidth;
-    ctx.lineCap = 'round';
-    ctx.lineJoin = 'round';
-    
-    ctx.beginPath();
-    ctx.moveTo(0, -s);
-    ctx.lineTo(-s * 0.866, s * 0.5);
-    ctx.lineTo(s * 0.866, s * 0.5);
-    ctx.closePath();
-    ctx.stroke();
-    
+    ctx.lineWidth = lw; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    ctx.beginPath(); ctx.moveTo(0, -s); ctx.lineTo(-s * 0.866, s * 0.5); ctx.lineTo(s * 0.866, s * 0.5); ctx.closePath(); ctx.stroke();
     ctx.restore();
 }
 
-// Pattern definitions
-const PATTERNS = {
-    storm: {
-        name: "Particle Storm",
-        elementCount: 2000,
-        baseSize: 26,
-        init: (el, count) => {
-            const angle = random() * TAU;
-            const radius = random() * 0.55;
-            el.data = {
-                x: 0.5 + cos(angle) * radius,
-                y: 0.5 + sin(angle) * radius,
-                vx: (random() - 0.5) * 0.003,
-                vy: (random() - 0.5) * 0.003,
-                homeAngle: (el.index / count) * TAU,
-                tubeAngle: random() * TAU,
-                tubeSpeed: 0.3 + random() * 0.4,
-                initialized: false
-            };
-        },
-        update: (el, t, count, cfg) => {
-            const d = el.data;
-            
-            const initialChaos = t < 8 ? 1 - smoothstep(t / 8) : 0;
-            
-            const cycleTime = 45;
-            const phase = t % cycleTime;
-            const sstep = (x) => x * x * (3 - 2 * x);
-            
-            let formationAmount = 0;
-            let infinityAmount = 0;
-            
-            if (phase < 10) {
-                formationAmount = sstep(phase / 10);
-            } else if (phase < 20) {
-                formationAmount = 1;
-            } else if (phase < 25) {
-                formationAmount = 1;
-                infinityAmount = sstep((phase - 20) / 5);
-            } else if (phase < 35) {
-                formationAmount = 1;
-                infinityAmount = 1;
-            } else if (phase < 40) {
-                formationAmount = 1;
-                infinityAmount = 1 - sstep((phase - 35) / 5);
-            } else {
-                formationAmount = 1;
-            }
-            
-            if (initialChaos > 0) {
-                formationAmount = formationAmount * (1 - initialChaos);
-            }
-            
-            const majorRadius = 0.38;
-            const minorRadius = 0.1;
-            const ringSpeed = 0.35;
-            const tubeAngle = d.tubeAngle + t * d.tubeSpeed;
-            const ringAngle = d.homeAngle + t * ringSpeed;
-            
-            const tilt = 0.45;
-            const torusX = 0.5 + (majorRadius + minorRadius * cos(tubeAngle)) * cos(ringAngle);
-            const torusY = 0.5 + (majorRadius + minorRadius * cos(tubeAngle)) * sin(ringAngle) * cos(tilt) 
-                              - minorRadius * sin(tubeAngle) * sin(tilt);
-            const depthScale = 0.7 + 0.3 * cos(tubeAngle);
-            
-            const infScale = 0.42;
-            const infSpeed = 0.25;
-            const infT = d.homeAngle + t * infSpeed;
-            const denominator = 1 + sin(infT) * sin(infT);
-            const infBaseX = (infScale * cos(infT)) / denominator;
-            const infBaseY = (infScale * sin(infT) * cos(infT)) / denominator;
-            const infTubeRadius = 0.07;
-            const infX = 0.5 + infBaseX + cos(tubeAngle) * infTubeRadius * 0.5;
-            const infY = 0.5 + infBaseY + sin(tubeAngle) * infTubeRadius;
-            
-            const targetX = lerp(torusX, infX, infinityAmount);
-            const targetY = lerp(torusY, infY, infinityAmount);
-            const targetScale = lerp(depthScale, 0.7 + 0.3 * cos(tubeAngle), infinityAmount);
-            
-            const chaosStrength = 1 - formationAmount;
-            
-            if (chaosStrength > 0.01) {
-                const dx = 0.5 - d.x;
-                const dy = 0.5 - d.y;
-                
-                const attract = 0.00008;
-                d.vx += dx * attract;
-                d.vy += dy * attract;
-                
-                const turb = cfg.MOTION.WAVE_INTENSITY * 0.0001;
-                d.vx += sin(t * 2 + el.phase) * turb;
-                d.vy += cos(t * 2 + el.phase + 1) * turb;
-                
-                d.vx *= 0.99;
-                d.vy *= 0.99;
-                d.x += d.vx * chaosStrength;
-                d.y += d.vy * chaosStrength;
-            }
-            
-            const lerpStrength = formationAmount * 0.06;
-            d.x = lerp(d.x, targetX, lerpStrength);
-            d.y = lerp(d.y, targetY, lerpStrength);
-            
-            if (d.x < -0.1) d.x = 1.1;
-            if (d.x > 1.1) d.x = -0.1;
-            if (d.y < -0.1) d.y = 1.1;
-            if (d.y > 1.1) d.y = -0.1;
-            
-            const finalScale = lerp(0.4, targetScale * 0.6, formationAmount);
-            
-            return {
-                x: d.x,
-                y: d.y,
-                rotation: t * 40,
-                scale: finalScale + sin(t * 2.5 + el.phase) * 0.12
-            };
-        }
+// boat scene - chill nighttime sailing
+const boatScene = {
+    active: false, boatPts: [], seaPts: [], skyPts: [],
+    
+    init(n) {
+        this.boatPts = []; this.seaPts = []; this.skyPts = [];
+        // hull
+        for (let i = 0; i <= 40; i++) { const t = i / 40, x = -0.12 + t * 0.24, y = 0.018 * (1 - pow((t - 0.5) * 2, 2)); this.boatPts.push({ x, y, part: 'hull' }); }
+        for (let i = 0; i < 80; i++) { const t = random(), x = -0.11 + t * 0.22, maxY = 0.016 * (1 - pow((t - 0.5) * 2, 2)); this.boatPts.push({ x, y: random() * maxY - 0.003, part: 'hull' }); }
+        // mast
+        for (let i = 0; i < 25; i++) { this.boatPts.push({ x: -0.005 + random() * 0.01, y: -i / 25 * 0.2 - 0.01, part: 'mast' }); }
+        // sail
+        for (let i = 0; i < 120; i++) { let r1 = random(), r2 = random(); if (r1 + r2 > 1) { r1 = 1 - r1; r2 = 1 - r2; }
+            const x1 = 0.008, y1 = -0.20, x2 = 0.008, y2 = -0.02, x3 = 0.12, y3 = -0.05;
+            this.boatPts.push({ x: x1 + r1 * (x2 - x1) + r2 * (x3 - x1), y: y1 + r1 * (y2 - y1) + r2 * (y3 - y1), part: 'sail' }); }
+        // flag
+        for (let i = 0; i < 20; i++) { let r1 = random(), r2 = random(); if (r1 + r2 > 1) { r1 = 1 - r1; r2 = 1 - r2; }
+            this.boatPts.push({ x: -0.005 + r1 * 0.05 + r2 * 0.04, y: -0.20 + r2 * 0.03, part: 'flag' }); }
+        // sea
+        const seaCount = floor(n * 0.45), rows = 10, perRow = floor(seaCount / rows);
+        for (let row = 0; row < rows; row++) { for (let i = 0; i < perRow; i++) { this.seaPts.push({ baseX: i / perRow + random() * 0.02, row, depth: row / rows, phase: random() * TAU, spd: 0.8 + random() * 0.3 }); } }
+        // sky
+        const skyCount = n - this.boatPts.length - this.seaPts.length;
+        for (let i = 0; i < skyCount; i++) { this.skyPts.push({ x: random(), y: random() * 0.4, twinkleSpd: 1 + random() * 2, phase: random() * TAU, size: 0.15 + random() * 0.15 }); }
     },
     
-    spiral: {
-        name: "Spiral Galaxy",
-        elementCount: 2200,
-        baseSize: 28,
-        init: (el, count) => {
-            const goldenAngle = PI * (3 - sqrt(5));
-            const i = el.index;
-            el.data = {
-                baseAngle: (i * goldenAngle) % TAU,
-                baseRadius: 0.55 * pow(i / count, 0.7),
-                speed: 0.5 + (i / count),
-                armIndex: floor(i / (count / 5)) % 5
-            };
-        },
-        update: (el, t, count, cfg) => {
-            const d = el.data;
-            const angleOffset = t * cfg.SPIRAL.ROTATION_SPEED * d.speed * 0.7;
-            const spiralOffset = cfg.SPIRAL.SPIRAL_FACTOR * t * 0.7;
-            
-            const wiggleBase = sin(t * cfg.SPIRAL.WIGGLE_FREQ + el.index * 0.5);
-            const wiggle = wiggleBase * cfg.SPIRAL.WIGGLE_AMP * cfg.MOTION.WAVE_INTENSITY;
-            const smoothWiggle = pow(sin(t * 0.5), 2) * cfg.SPIRAL.WIGGLE_AMP * 0.3;
-            const wiggleRotation = sin(t * 2 + el.phase) * 30;
-            
-            const breathe = sin(t * 0.3) * cfg.MOTION.BREATHING * 0.1;
-            
-            const currentAngle = d.baseAngle + angleOffset + spiralOffset;
-            const radius = (d.baseRadius + wiggle + smoothWiggle) * (1 + breathe);
-            const depthScale = 0.15 + (d.baseRadius / 0.55) * 0.95;
-            
-            const chaosX = sin(t * 7 + el.index) * cfg.MOTION.CHAOS * 0.05;
-            const chaosY = cos(t * 7 + el.index * 1.3) * cfg.MOTION.CHAOS * 0.05;
-            
-            return {
-                x: 0.5 + cos(currentAngle) * radius + chaosX,
-                y: 0.5 + sin(currentAngle) * radius + chaosY,
-                rotation: (angleOffset * 45) + 150 + wiggleRotation,
-                scale: depthScale
-            };
+    getWaveY(x, t, row) { const baseY = 0.54 + row * 0.042, amp = 0.022 - row * 0.001, freq = 2.2 + row * 0.2, spd = 0.5 + row * 0.03; return baseY + sin(x * freq * TAU + t * spd + row * 0.6) * amp; },
+    
+    getBoatPos(t) { const bx = 0.38 + sin(t * 0.12) * 0.12, by = this.getWaveY(bx, t, 0), dx = 0.015;
+        const y1 = this.getWaveY(bx - dx, t, 0), y2 = this.getWaveY(bx + dx, t, 0);
+        return { x: bx, y: by - 0.028, tilt: atan2(y2 - y1, dx * 2) * 0.5 }; },
+    
+    update(idx, t) {
+        const bp = this.boatPts, sp = this.seaPts, boat = this.getBoatPos(t);
+        if (idx < bp.length) {
+            const pt = bp[idx], cosT = cos(boat.tilt), sinT = sin(boat.tilt);
+            let sway = 0; if (pt.part === 'sail') sway = sin(t * 1.8 + pt.y * 8) * 0.006; if (pt.part === 'flag') sway = sin(t * 3 + pt.y * 5) * 0.012;
+            const rx = (pt.x + sway) * cosT - pt.y * sinT, ry = (pt.x + sway) * sinT + pt.y * cosT;
+            let hue, sat; if (pt.part === 'hull' || pt.part === 'mast') { hue = 0.07; sat = 0.55; } else if (pt.part === 'sail') { hue = 0.12; sat = 0.08; } else { hue = 0.0; sat = 0.85; }
+            return { x: boat.x + rx, y: boat.y + ry, rot: boat.tilt + t * 3, scale: pt.part === 'flag' ? 0.22 : 0.32, hue, sat, val: 0.95, alpha: 0.9 };
         }
+        const seaIdx = idx - bp.length;
+        if (seaIdx < sp.length) {
+            const pt = sp[seaIdx], x = pt.baseX, y = this.getWaveY(x, t * pt.spd, pt.row);
+            const distToBoat = abs(x - boat.x), nearBoat = distToBoat < 0.14 && pt.row < 2;
+            return { x, y: y + pt.depth * 0.015, rot: t * 8 + pt.phase * 30, scale: 0.3 - pt.depth * 0.08, hue: 0.55 + pt.depth * 0.06, sat: 0.65 - pt.depth * 0.1, val: 0.85 - pt.depth * 0.15, alpha: nearBoat ? 0.15 : (0.75 - pt.depth * 0.25) };
+        }
+        const skyIdx = seaIdx - sp.length;
+        if (skyIdx < this.skyPts.length) { const pt = this.skyPts[skyIdx], twinkle = sin(t * pt.twinkleSpd + pt.phase) * 0.4 + 0.6;
+            return { x: pt.x, y: pt.y + sin(t * 0.2 + pt.phase) * 0.008, rot: t * 4, scale: pt.size * twinkle, hue: 0.13, sat: 0.25, val: 1, alpha: twinkle * 0.5 }; }
+        return { x: -1, y: -1, scale: 0, alpha: 0 };
     },
     
-    rings: {
-        name: "Ripple Rings",
-        elementCount: 2000,
-        baseSize: 32,
-        init: (el, count) => {
-            const ringCount = 12;
-            const ring = floor(el.index / (count / ringCount));
-            const posInRing = (el.index % (count / ringCount)) / (count / ringCount);
-            el.data = {
-                baseAngle: posInRing * TAU,
-                baseRadius: (ring / ringCount) * 0.48 + 0.05,
-                ring,
-                posInRing
-            };
-        },
-        update: (el, t, count, cfg) => {
-            const d = el.data;
-            const wave = sin(t * 2 - d.baseRadius * 15) * 0.03 * cfg.MOTION.WAVE_INTENSITY;
-            const rotation = t * 0.35 + d.ring * 0.5;
-            const angleOffset = rotation + d.posInRing * TAU;
-            const radialWiggle = sin(t * 3 + d.ring * 2 + d.posInRing * 10) * 0.02;
-            const pulse = sin(t * 3 + d.ring * 0.8) * 0.3;
-            const breathe = sin(t * 0.3) * cfg.MOTION.BREATHING * 0.15;
-            
-            const radius = (d.baseRadius + wave + radialWiggle) * (1 + breathe);
-            
-            return {
-                x: 0.5 + cos(angleOffset) * radius,
-                y: 0.5 + sin(angleOffset) * radius,
-                rotation: rotation * 100 + sin(t * 2 + d.ring) * 45,
-                scale: 0.6 + pulse
-            };
+    drawBg(t) {
+        const grad = bgCtx.createLinearGradient(0, 0, 0, h * 0.58);
+        grad.addColorStop(0, '#080818'); grad.addColorStop(0.4, '#151530'); grad.addColorStop(1, '#253050');
+        bgCtx.fillStyle = grad; bgCtx.fillRect(0, 0, w, h);
+        // moon
+        const mx = w * 0.78, my = h * 0.14, mr = min(w, h) * 0.055;
+        const glow = bgCtx.createRadialGradient(mx, my, 0, mx, my, mr * 4);
+        glow.addColorStop(0, 'rgba(255, 250, 220, 0.25)'); glow.addColorStop(0.4, 'rgba(255, 250, 220, 0.08)'); glow.addColorStop(1, 'rgba(255, 250, 220, 0)');
+        bgCtx.fillStyle = glow; bgCtx.beginPath(); bgCtx.arc(mx, my, mr * 4, 0, TAU); bgCtx.fill();
+        bgCtx.fillStyle = '#fffae8'; bgCtx.beginPath(); bgCtx.arc(mx, my, mr, 0, TAU); bgCtx.fill();
+        // waves
+        for (let layer = 7; layer >= 0; layer--) {
+            const baseY = h * (0.54 + layer * 0.042), amp = h * (0.022 - layer * 0.001), freq = 2.2 + layer * 0.2, spd = 0.5 + layer * 0.03;
+            bgCtx.fillStyle = `hsl(205, 65%, ${32 - layer * 2.5}%)`; bgCtx.beginPath(); bgCtx.moveTo(0, h);
+            for (let x = 0; x <= w; x += 4) { bgCtx.lineTo(x, baseY + sin(x / w * freq * TAU + t * spd + layer * 0.6) * amp); }
+            bgCtx.lineTo(w, h); bgCtx.closePath(); bgCtx.fill();
         }
-    },
-    
-    pulseGrid: {
-        name: "Pulse Grid",
-        elementCount: 2025,
-        baseSize: 28,
-        init: (el, count) => {
-            const gridSize = floor(sqrt(count));
-            const row = floor(el.index / gridSize);
-            const col = el.index % gridSize;
-            const span = 1.1;
-            const offset = (1 - span) / 2;
-            const normX = col / (gridSize - 1);
-            const normY = row / (gridSize - 1);
-            el.data = {
-                baseX: normX * span + offset,
-                baseY: normY * span + offset,
-                distFromCenter: sqrt(pow(normX - 0.5, 2) + pow(normY - 0.5, 2))
-            };
-        },
-        update: (el, t, count, cfg) => {
-            const d = el.data;
-            const ripple = sin(t * 2.5 - d.distFromCenter * 8) * cfg.MOTION.WAVE_INTENSITY;
-            const scalePulse = 0.5 + ripple * 0.25;
-            const pullStrength = ripple * 0.035;
-            const dx = (0.5 - d.baseX) * pullStrength;
-            const dy = (0.5 - d.baseY) * pullStrength;
-            
-            return {
-                x: d.baseX + dx,
-                y: d.baseY + dy,
-                rotation: ripple * 35 + t * 15,
-                scale: scalePulse
-            };
-        }
-    },
-    
-    grid: {
-        name: "Flowing Grid",
-        elementCount: 2500,
-        baseSize: 36,
-        init: (el, count) => {
-            const gridSize = floor(sqrt(count));
-            const row = floor(el.index / gridSize);
-            const col = el.index % gridSize;
-            const span = 1.1;
-            const offset = (1 - span) / 2;
-            el.data = {
-                gridX: col / (gridSize - 1),
-                gridY: row / (gridSize - 1),
-                baseX: (col / (gridSize - 1)) * span + offset,
-                baseY: (row / (gridSize - 1)) * span + offset
-            };
-        },
-        update: (el, t, count, cfg) => {
-            const d = el.data;
-            const intensity = clamp(cfg.MOTION.WAVE_INTENSITY, 0, 1.0);
-            
-            const flowX = sin(t * 0.12 + d.gridY * 3) * 0.07 * intensity;
-            const flowY = cos(t * 0.12 + d.gridX * 3) * 0.07 * intensity;
-            
-            const wave2X = sin(t * 0.2 + d.gridX * 5 + d.gridY * 2) * 0.025 * intensity;
-            const wave2Y = cos(t * 0.2 + d.gridY * 5 + d.gridX * 2) * 0.025 * intensity;
-            
-            const wave = sin(t * 0.4 + d.gridX * 2 + d.gridY * 2) * 0.03;
-            
-            return {
-                x: d.baseX + flowX + wave2X,
-                y: d.baseY + flowY + wave2Y,
-                rotation: t * 8 + (d.gridX + d.gridY) * 20 + sin(t * 0.5 + d.gridX * 3) * 15,
-                scale: 0.5 + wave
-            };
-        }
-    },
-    
-    orbits: {
-        name: "Planetary Orbits",
-        elementCount: 1920,
-        baseSize: 35,
-        init: (el, count) => {
-            const orbitCount = 8;
-            const orbit = floor(el.index / (count / orbitCount));
-            const posInOrbit = (el.index % (count / orbitCount)) / (count / orbitCount);
-            el.data = {
-                orbit,
-                orbitRadius: 0.06 + orbit * 0.05,
-                angle: posInOrbit * TAU,
-                orbitSpeed: 1.2 - orbit * 0.1,
-                orbitPhase: orbit * 0.3
-            };
-        },
-        update: (el, t, count, cfg) => {
-            const d = el.data;
-            const orbitAngle = t * d.orbitSpeed + d.angle;
-            const breathe = 1 + sin(t * 0.3) * cfg.MOTION.BREATHING * 0.2;
-            
-            const ellipseA = d.orbitRadius * breathe;
-            const ellipseB = d.orbitRadius * (0.75 + sin(t * 0.5 + d.orbitPhase) * 0.2) * breathe;
-            
-            const x = 0.5 + cos(orbitAngle) * ellipseA;
-            const y = 0.5 + sin(orbitAngle) * ellipseB;
-            
-            const microOrbit = t * 2.5 + el.index * 0.08;
-            const microRadius = 0.015;
-            
-            return {
-                x: x + cos(microOrbit) * microRadius,
-                y: y + sin(microOrbit) * microRadius,
-                rotation: orbitAngle * 50 + microOrbit * 20,
-                scale: 0.45 + sin(t * 2 + d.orbit) * 0.15 + abs(sin(orbitAngle)) * 0.1
-            };
-        }
-    },
-    
-    fireworks: {
-        name: "Fireworks Burst",
-        elementCount: 1800,
-        baseSize: 24,
-        init: (el, count) => {
-            const burstCount = 8;
-            const burst = floor(el.index / (count / burstCount));
-            const posInBurst = (el.index % (count / burstCount)) / (count / burstCount);
-            const centers = [
-                {x: 0.25, y: 0.25}, {x: 0.75, y: 0.25},
-                {x: 0.5, y: 0.5}, {x: 0.25, y: 0.75},
-                {x: 0.75, y: 0.75}, {x: 0.15, y: 0.5},
-                {x: 0.85, y: 0.5}, {x: 0.5, y: 0.15}
-            ];
-            const center = centers[burst % centers.length];
-            el.data = {
-                burst,
-                centerX: center.x,
-                centerY: center.y,
-                angle: posInBurst * TAU,
-                speed: 0.3 + posInBurst * 0.7,
-                life: posInBurst
-            };
-        },
-        update: (el, t, count, cfg) => {
-            const d = el.data;
-            const burstTime = (t * 0.6 + d.burst * 0.5) % 3;
-            let expansion = burstTime < 2 ? burstTime * 0.15 : (3 - burstTime) * 0.3;
-            expansion *= cfg.MOTION.WAVE_INTENSITY;
-            
-            const gravity = burstTime * burstTime * 0.02;
-            const spiralAngle = d.angle + burstTime * d.speed * 2;
-            const radius = expansion * d.speed;
-            
-            const x = d.centerX + cos(spiralAngle) * radius;
-            const y = d.centerY + sin(spiralAngle) * radius + gravity;
-            
-            const fade = burstTime < 2 ? (1 - burstTime / 2) : 0;
-            const pulse = sin(t * 4 + d.life * 10) * 0.2;
-            
-            return {
-                x, y,
-                rotation: spiralAngle * 50 + t * 100,
-                scale: (0.4 + fade * 0.6 + pulse) * d.speed
-            };
-        }
-    },
-    
-    waves: {
-        name: "Wave Interference",
-        elementCount: 2500,
-        baseSize: 32,
-        init: (el, count) => {
-            const gridSize = floor(sqrt(count));
-            const row = floor(el.index / gridSize);
-            const col = el.index % gridSize;
-            const span = 1.1;
-            const offset = (1 - span) / 2;
-            el.data = {
-                baseX: (col / (gridSize - 1)) * span + offset,
-                baseY: (row / (gridSize - 1)) * span + offset
-            };
-        },
-        update: (el, t, count, cfg) => {
-            const d = el.data;
-            const dx1 = d.baseX - 0.3, dy1 = d.baseY - 0.5;
-            const dist1 = sqrt(dx1*dx1 + dy1*dy1);
-            const dx2 = d.baseX - 0.7, dy2 = d.baseY - 0.5;
-            const dist2 = sqrt(dx2*dx2 + dy2*dy2);
-            
-            const intensity = cfg.MOTION.WAVE_INTENSITY * 0.6;
-            const wave1 = sin(t * 2.5 - dist1 * 15) * intensity;
-            const wave2 = sin(t * 2.5 - dist2 * 15 + PI/3) * intensity;
-            
-            const interference = (wave1 + wave2) / 2;
-            const offset = interference * 0.035;
-            const circularMotion = sin(t * 1.2 + interference * PI) * 0.018;
-            
-            return {
-                x: d.baseX + circularMotion,
-                y: d.baseY + offset,
-                rotation: t * 15 + interference * 60 + sin(t * 2) * 20,
-                scale: 0.35 + (interference + 1) * 0.15 + sin(t * 3 + el.index * 0.1) * 0.08
-            };
-        }
-    },
-    
-    helix: {
-        name: "DNA Helix",
-        elementCount: 1000,
-        baseSize: 38,
-        init: (el, count) => {
-            el.data = {
-                strand: el.index % 2,
-                position: floor(el.index / 2) / floor(count / 2)
-            };
-        },
-        update: (el, t, count, cfg) => {
-            const d = el.data;
-            const tOffset = t * 0.4;
-            const helixAngle = d.position * PI * 4 + tOffset + d.strand * PI;
-            const breathe = 1 + sin(t * 0.3) * cfg.MOTION.BREATHING * 0.3;
-            const wiggle = sin(t * 2 + d.position * 10) * 0.03 * cfg.MOTION.WAVE_INTENSITY;
-            const radiusWiggle = (0.18 + sin(t * 1.5 + d.position * 5) * 0.02) * breathe;
-            
-            const x = 0.5 + cos(helixAngle) * radiusWiggle + wiggle;
-            const y = 0.02 + d.position * 0.96;
-            const pulse = sin(d.position * 8 + t * 2) * 0.2;
-            
-            return {
-                x, y,
-                rotation: helixAngle * 50 + t * 30,
-                scale: 0.4 + pulse + sin(t * 3 + d.strand * PI) * 0.15
-            };
-        }
-    },
-    
-    vortex: {
-        name: "Vortex",
-        elementCount: 2000,
-        baseSize: 26,
-        init: (el, count) => {
-            el.data = {
-                height: el.index / count,
-                baseAngle: (el.index / count) * TAU * 8,
-                radiusMod: 0.8 + random() * 0.4
-            };
-        },
-        update: (el, t, count, cfg) => {
-            const d = el.data;
-            let radiusAtHeight = ((1 - d.height) * 0.4 + 0.05) * d.radiusMod;
-            const spin = t * (0.3 + d.height * 0.5);
-            const angle = d.baseAngle + spin;
-            const wobble = sin(t * 1.5 + d.height * 10) * 0.02 * cfg.MOTION.WAVE_INTENSITY;
-            const breathe = 1 + sin(t * 0.3) * cfg.MOTION.BREATHING * 0.2;
-            const radius = radiusAtHeight * breathe + wobble;
-            
-            return {
-                x: 0.5 + cos(angle) * radius,
-                y: 0.02 + d.height * 0.96,
-                rotation: angle * 30 + t * 15,
-                scale: 0.3 + (1 - d.height) * 0.4
-            };
-        }
-    },
-    
-    mandala: {
-        name: "Mandala",
-        elementCount: 2160,
-        baseSize: 30,
-        init: (el, count) => {
-            const symmetry = 6;
-            const segment = el.index % symmetry;
-            const indexInSegment = floor(el.index / symmetry);
-            const layer = floor(indexInSegment / 20);
-            const posInLayer = (indexInSegment % 20) / 20;
-            el.data = {
-                segment,
-                layer,
-                posInLayer,
-                baseRadius: 0.05 + layer * 0.045,
-                symmetry
-            };
-        },
-        update: (el, t, count, cfg) => {
-            const d = el.data;
-            const segmentAngle = (d.segment / d.symmetry) * TAU;
-            const innerAngle = d.posInLayer * TAU / d.symmetry;
-            const layerSpin = t * (0.5 - d.layer * 0.05) * (d.layer % 2 === 0 ? 1 : -1);
-            const angle = segmentAngle + innerAngle + layerSpin;
-            const breathe = 1 + sin(t * 0.4 + d.layer * 0.5) * cfg.MOTION.BREATHING * 0.15;
-            const pulse = sin(t * 2 + d.layer * PI/3) * 0.02 * cfg.MOTION.WAVE_INTENSITY;
-            const radius = (d.baseRadius + pulse) * breathe;
-            
-            return {
-                x: 0.5 + cos(angle) * radius,
-                y: 0.5 + sin(angle) * radius,
-                rotation: layerSpin * 80 + d.layer * 30,
-                scale: 0.4 + sin(t * 3 + d.layer) * 0.15
-            };
-        }
-    },
-    
-    constellation: {
-        name: "Constellation",
-        elementCount: 1500,
-        baseSize: 22,
-        init: (el, count) => {
-            const clusterCount = 12;
-            const cluster = floor(random() * clusterCount);
-            const clusterCenterX = (cluster % 4) / 3 * 0.7 + 0.15;
-            const clusterCenterY = floor(cluster / 4) / 2 * 0.7 + 0.15;
-            el.data = {
-                baseX: clusterCenterX + (random() - 0.5) * 0.25,
-                baseY: clusterCenterY + (random() - 0.5) * 0.25,
-                twinkleSpeed: 2 + random() * 3,
-                driftAngle: random() * TAU,
-                driftSpeed: 0.005 + random() * 0.01
-            };
-        },
-        update: (el, t, count, cfg) => {
-            const d = el.data;
-            const drift = sin(t * d.driftSpeed + d.driftAngle) * 0.03 * cfg.MOTION.WAVE_INTENSITY;
-            const driftY = cos(t * d.driftSpeed * 0.7 + d.driftAngle) * 0.02;
-            const twinkle = sin(t * d.twinkleSpeed + el.phase) * 0.5 + 0.5;
-            
-            return {
-                x: d.baseX + drift,
-                y: d.baseY + driftY,
-                rotation: t * 10 + sin(t + el.index) * 20,
-                scale: 0.3 + twinkle * 0.5
-            };
-        }
+        // moon reflection
+        const ry = h * 0.60; bgCtx.globalAlpha = 0.3;
+        for (let i = 0; i < 6; i++) { const rx = mx + sin(t * 1.5 + i * 0.8) * 12, rry = ry + i * 12 + sin(t * 1.2 + i * 0.4) * 4, rw = (25 - i * 3) + sin(t * 2 + i) * 5;
+            bgCtx.fillStyle = 'rgba(255, 250, 220, 0.4)'; bgCtx.fillRect(rx - rw/2, rry, rw, 2); }
+        bgCtx.globalAlpha = 1;
     }
 };
 
-const patternKeys = Object.keys(PATTERNS);
+// patterns
+const patterns = {
+    storm: { name: "Particle Storm", count: 2000, baseSize: 26,
+        init: (el, n) => { const ang = random() * TAU, r = random() * 0.55;
+            el.data = { x: 0.5 + cos(ang) * r, y: 0.5 + sin(ang) * r, vx: (random() - 0.5) * 0.003, vy: (random() - 0.5) * 0.003, homeAngle: (el.idx / n) * TAU, tubeAngle: random() * TAU, tubeSpd: 0.3 + random() * 0.4 }; },
+        update: (el, t, n) => {
+            const d = el.data, initChaos = t < 8 ? 1 - smoothstep(t / 8) : 0, cycle = 45, phase = t % cycle, ss = x => x * x * (3 - 2 * x);
+            let formation = 0, infinity = 0;
+            if (phase < 10) formation = ss(phase / 10); else if (phase < 20) formation = 1; else if (phase < 25) { formation = 1; infinity = ss((phase - 20) / 5); }
+            else if (phase < 35) { formation = 1; infinity = 1; } else if (phase < 40) { formation = 1; infinity = 1 - ss((phase - 35) / 5); } else formation = 1;
+            if (initChaos > 0) formation *= (1 - initChaos);
+            const majR = 0.38, minR = 0.1, ringSpd = 0.35, tubeAng = d.tubeAngle + t * d.tubeSpd, ringAng = d.homeAngle + t * ringSpd, tilt = 0.45;
+            const torusX = 0.5 + (majR + minR * cos(tubeAng)) * cos(ringAng), torusY = 0.5 + (majR + minR * cos(tubeAng)) * sin(ringAng) * cos(tilt) - minR * sin(tubeAng) * sin(tilt);
+            const depthScale = 0.7 + 0.3 * cos(tubeAng), infScale = 0.42, infSpd = 0.25, infT = d.homeAngle + t * infSpd, denom = 1 + sin(infT) * sin(infT);
+            const infX = 0.5 + (infScale * cos(infT)) / denom + cos(tubeAng) * 0.035, infY = 0.5 + (infScale * sin(infT) * cos(infT)) / denom + sin(tubeAng) * 0.07;
+            const targetX = lerp(torusX, infX, infinity), targetY = lerp(torusY, infY, infinity), targetScale = lerp(depthScale, 0.7 + 0.3 * cos(tubeAng), infinity);
+            const chaosStr = 1 - formation;
+            if (chaosStr > 0.01) { d.vx += (0.5 - d.x) * 0.00008 + sin(t * 2 + el.phase) * cfg.motion.waveInt * 0.0001; d.vy += (0.5 - d.y) * 0.00008 + cos(t * 2 + el.phase + 1) * cfg.motion.waveInt * 0.0001;
+                d.vx *= 0.99; d.vy *= 0.99; d.x += d.vx * chaosStr; d.y += d.vy * chaosStr; }
+            d.x = lerp(d.x, targetX, formation * 0.06); d.y = lerp(d.y, targetY, formation * 0.06);
+            if (d.x < -0.1) d.x = 1.1; if (d.x > 1.1) d.x = -0.1; if (d.y < -0.1) d.y = 1.1; if (d.y > 1.1) d.y = -0.1;
+            return { x: d.x, y: d.y, rot: t * 40, scale: lerp(0.4, targetScale * 0.6, formation) + sin(t * 2.5 + el.phase) * 0.12 }; }
+    },
+    spiral: { name: "Spiral Galaxy", count: 2200, baseSize: 28,
+        init: (el, n) => { const goldenAng = PI * (3 - sqrt(5)); el.data = { baseAngle: (el.idx * goldenAng) % TAU, baseRadius: 0.55 * pow(el.idx / n, 0.7), spd: 0.5 + (el.idx / n) }; },
+        update: (el, t, n) => { const d = el.data, angleOff = t * cfg.spiral.rotSpeed * d.spd * 0.7, spiralOff = cfg.spiral.factor * t * 0.7;
+            const wiggle = sin(t * cfg.spiral.wiggleFreq + el.idx * 0.5) * cfg.spiral.wiggleAmp * cfg.motion.waveInt + pow(sin(t * 0.5), 2) * cfg.spiral.wiggleAmp * 0.3;
+            const r = (d.baseRadius + wiggle) * (1 + sin(t * 0.3) * cfg.motion.breathing * 0.1), curAngle = d.baseAngle + angleOff + spiralOff;
+            return { x: 0.5 + cos(curAngle) * r + sin(t * 7 + el.idx) * cfg.motion.chaos * 0.05, y: 0.5 + sin(curAngle) * r + cos(t * 7 + el.idx * 1.3) * cfg.motion.chaos * 0.05,
+                rot: (angleOff * 45) + 150 + sin(t * 2 + el.phase) * 30, scale: 0.15 + (d.baseRadius / 0.55) * 0.95 }; }
+    },
+    rings: { name: "Ripple Rings", count: 2000, baseSize: 32,
+        init: (el, n) => { const ringCount = 12, ring = floor(el.idx / (n / ringCount)), pos = (el.idx % (n / ringCount)) / (n / ringCount);
+            el.data = { baseAngle: pos * TAU, baseRadius: (ring / ringCount) * 0.48 + 0.05, ring, pos }; },
+        update: (el, t, n) => { const d = el.data, wave = sin(t * 2 - d.baseRadius * 15) * 0.03 * cfg.motion.waveInt, rot = t * 0.35 + d.ring * 0.5;
+            const r = (d.baseRadius + wave + sin(t * 3 + d.ring * 2 + d.pos * 10) * 0.02) * (1 + sin(t * 0.3) * cfg.motion.breathing * 0.15);
+            return { x: 0.5 + cos(rot + d.pos * TAU) * r, y: 0.5 + sin(rot + d.pos * TAU) * r, rot: rot * 100 + sin(t * 2 + d.ring) * 45, scale: 0.6 + sin(t * 3 + d.ring * 0.8) * 0.3 }; }
+    },
+    pulseGrid: { name: "Pulse Grid", count: 2025, baseSize: 28,
+        init: (el, n) => { const gridSz = floor(sqrt(n)), row = floor(el.idx / gridSz), col = el.idx % gridSz, span = 1.1, off = (1 - span) / 2;
+            el.data = { baseX: (col / (gridSz - 1)) * span + off, baseY: (row / (gridSz - 1)) * span + off, distCenter: sqrt(pow(col / (gridSz - 1) - 0.5, 2) + pow(row / (gridSz - 1) - 0.5, 2)) }; },
+        update: (el, t, n) => { const d = el.data, ripple = sin(t * 2.5 - d.distCenter * 8) * cfg.motion.waveInt, pull = ripple * 0.035;
+            return { x: d.baseX + (0.5 - d.baseX) * pull, y: d.baseY + (0.5 - d.baseY) * pull, rot: ripple * 35 + t * 15, scale: 0.5 + ripple * 0.25 }; }
+    },
+    grid: { name: "Flowing Grid", count: 2500, baseSize: 36,
+        init: (el, n) => { const gridSz = floor(sqrt(n)), row = floor(el.idx / gridSz), col = el.idx % gridSz, span = 1.1, off = (1 - span) / 2;
+            el.data = { gx: col / (gridSz - 1), gy: row / (gridSz - 1), baseX: (col / (gridSz - 1)) * span + off, baseY: (row / (gridSz - 1)) * span + off }; },
+        update: (el, t, n) => { const d = el.data, int = clamp(cfg.motion.waveInt, 0, 1);
+            return { x: d.baseX + sin(t * 0.12 + d.gy * 3) * 0.07 * int + sin(t * 0.2 + d.gx * 5 + d.gy * 2) * 0.025 * int,
+                y: d.baseY + cos(t * 0.12 + d.gx * 3) * 0.07 * int + cos(t * 0.2 + d.gy * 5 + d.gx * 2) * 0.025 * int,
+                rot: t * 8 + (d.gx + d.gy) * 20 + sin(t * 0.5 + d.gx * 3) * 15, scale: 0.5 + sin(t * 0.4 + d.gx * 2 + d.gy * 2) * 0.03 }; }
+    },
+    orbits: { name: "Planetary Orbits", count: 1920, baseSize: 35,
+        init: (el, n) => { const orbitCount = 8, orbit = floor(el.idx / (n / orbitCount)), pos = (el.idx % (n / orbitCount)) / (n / orbitCount);
+            el.data = { orbit, orbitR: 0.06 + orbit * 0.05, angle: pos * TAU, orbitSpd: 1.2 - orbit * 0.1, orbitPhase: orbit * 0.3 }; },
+        update: (el, t, n) => { const d = el.data, orbitAng = t * d.orbitSpd + d.angle, breathe = 1 + sin(t * 0.3) * cfg.motion.breathing * 0.2;
+            const a = d.orbitR * breathe, b = d.orbitR * (0.75 + sin(t * 0.5 + d.orbitPhase) * 0.2) * breathe, micro = t * 2.5 + el.idx * 0.08;
+            return { x: 0.5 + cos(orbitAng) * a + cos(micro) * 0.015, y: 0.5 + sin(orbitAng) * b + sin(micro) * 0.015,
+                rot: orbitAng * 50 + micro * 20, scale: 0.45 + sin(t * 2 + d.orbit) * 0.15 + abs(sin(orbitAng)) * 0.1 }; }
+    },
+    fireworks: { name: "Fireworks Burst", count: 1800, baseSize: 24,
+        init: (el, n) => { const burstCount = 8, burst = floor(el.idx / (n / burstCount)), pos = (el.idx % (n / burstCount)) / (n / burstCount);
+            const centers = [{x:0.25,y:0.25},{x:0.75,y:0.25},{x:0.5,y:0.5},{x:0.25,y:0.75},{x:0.75,y:0.75},{x:0.15,y:0.5},{x:0.85,y:0.5},{x:0.5,y:0.15}];
+            el.data = { burst, cx: centers[burst % 8].x, cy: centers[burst % 8].y, angle: pos * TAU, spd: 0.3 + pos * 0.7, life: pos }; },
+        update: (el, t, n) => { const d = el.data, burstT = (t * 0.6 + d.burst * 0.5) % 3;
+            let expand = (burstT < 2 ? burstT * 0.15 : (3 - burstT) * 0.3) * cfg.motion.waveInt;
+            const spiralAng = d.angle + burstT * d.spd * 2, fade = burstT < 2 ? (1 - burstT / 2) : 0;
+            return { x: d.cx + cos(spiralAng) * expand * d.spd, y: d.cy + sin(spiralAng) * expand * d.spd + burstT * burstT * 0.02,
+                rot: spiralAng * 50 + t * 100, scale: (0.4 + fade * 0.6 + sin(t * 4 + d.life * 10) * 0.2) * d.spd }; }
+    },
+    waves: { name: "Wave Interference", count: 2500, baseSize: 32,
+        init: (el, n) => { const gridSz = floor(sqrt(n)), row = floor(el.idx / gridSz), col = el.idx % gridSz, span = 1.1, off = (1 - span) / 2;
+            el.data = { baseX: (col / (gridSz - 1)) * span + off, baseY: (row / (gridSz - 1)) * span + off }; },
+        update: (el, t, n) => { const d = el.data, int = cfg.motion.waveInt * 0.6;
+            const dist1 = sqrt(pow(d.baseX - 0.3, 2) + pow(d.baseY - 0.5, 2)), dist2 = sqrt(pow(d.baseX - 0.7, 2) + pow(d.baseY - 0.5, 2));
+            const interference = (sin(t * 2.5 - dist1 * 15) * int + sin(t * 2.5 - dist2 * 15 + PI/3) * int) / 2;
+            return { x: d.baseX + sin(t * 1.2 + interference * PI) * 0.018, y: d.baseY + interference * 0.035,
+                rot: t * 15 + interference * 60 + sin(t * 2) * 20, scale: 0.35 + (interference + 1) * 0.15 + sin(t * 3 + el.idx * 0.1) * 0.08 }; }
+    },
+    helix: { name: "DNA Helix", count: 1000, baseSize: 38,
+        init: (el, n) => { el.data = { strand: el.idx % 2, pos: floor(el.idx / 2) / floor(n / 2) }; },
+        update: (el, t, n) => { const d = el.data, helixAng = d.pos * PI * 4 + t * 0.4 + d.strand * PI;
+            const breathe = 1 + sin(t * 0.3) * cfg.motion.breathing * 0.3, rWiggle = (0.18 + sin(t * 1.5 + d.pos * 5) * 0.02) * breathe;
+            return { x: 0.5 + cos(helixAng) * rWiggle + sin(t * 2 + d.pos * 10) * 0.03 * cfg.motion.waveInt, y: 0.02 + d.pos * 0.96,
+                rot: helixAng * 50 + t * 30, scale: 0.4 + sin(d.pos * 8 + t * 2) * 0.2 + sin(t * 3 + d.strand * PI) * 0.15 }; }
+    },
+    vortex: { name: "Vortex", count: 2000, baseSize: 26,
+        init: (el, n) => { el.data = { height: el.idx / n, baseAngle: (el.idx / n) * TAU * 8, rMod: 0.8 + random() * 0.4 }; },
+        update: (el, t, n) => { const d = el.data, spin = t * (0.3 + d.height * 0.5), ang = d.baseAngle + spin;
+            const r = (((1 - d.height) * 0.4 + 0.05) * d.rMod) * (1 + sin(t * 0.3) * cfg.motion.breathing * 0.2) + sin(t * 1.5 + d.height * 10) * 0.02 * cfg.motion.waveInt;
+            return { x: 0.5 + cos(ang) * r, y: 0.02 + d.height * 0.96, rot: ang * 30 + t * 15, scale: 0.3 + (1 - d.height) * 0.4 }; }
+    },
+    mandala: { name: "Mandala", count: 2160, baseSize: 30,
+        init: (el, n) => { const sym = 6, seg = el.idx % sym, inSeg = floor(el.idx / sym), layer = floor(inSeg / 20);
+            el.data = { seg, layer, inLayer: (inSeg % 20) / 20, baseR: 0.05 + layer * 0.045, sym }; },
+        update: (el, t, n) => { const d = el.data, layerSpin = t * (0.5 - d.layer * 0.05) * (d.layer % 2 === 0 ? 1 : -1);
+            const ang = (d.seg / d.sym) * TAU + d.inLayer * TAU / d.sym + layerSpin;
+            const r = (d.baseR + sin(t * 2 + d.layer * PI/3) * 0.02 * cfg.motion.waveInt) * (1 + sin(t * 0.4 + d.layer * 0.5) * cfg.motion.breathing * 0.15);
+            return { x: 0.5 + cos(ang) * r, y: 0.5 + sin(ang) * r, rot: layerSpin * 80 + d.layer * 30, scale: 0.4 + sin(t * 3 + d.layer) * 0.15 }; }
+    },
+    constellation: { name: "Constellation", count: 1500, baseSize: 22,
+        init: (el, n) => { const cluster = floor(random() * 12), cx = (cluster % 4) / 3 * 0.7 + 0.15, cy = floor(cluster / 4) / 2 * 0.7 + 0.15;
+            el.data = { baseX: cx + (random() - 0.5) * 0.25, baseY: cy + (random() - 0.5) * 0.25, twinkleSpd: 2 + random() * 3, driftAng: random() * TAU, driftSpd: 0.005 + random() * 0.01 }; },
+        update: (el, t, n) => { const d = el.data;
+            return { x: d.baseX + sin(t * d.driftSpd + d.driftAng) * 0.03 * cfg.motion.waveInt, y: d.baseY + cos(t * d.driftSpd * 0.7 + d.driftAng) * 0.02,
+                rot: t * 10 + sin(t + el.idx) * 20, scale: 0.3 + (sin(t * d.twinkleSpd + el.phase) * 0.5 + 0.5) * 0.5 }; }
+    },
+    sailboat: { name: "Sailboat", count: 2000, baseSize: 28, customBg: true,
+        init: (el, n) => { boatScene.init(n); },
+        update: (el, t, n) => { return boatScene.update(el.idx, t); },
+        drawBg: (t) => { boatScene.drawBg(t); }
+    }
+};
 
-// Performance detection and lite mode
-let liteMode = 'auto';
-let frameTimings = [];
-let performanceCheckDone = false;
-let badFrameCount = 0;
+const patternKeys = Object.keys(patterns);
 
-const FULL_ELEMENT_COUNT = 2000;
-const LITE_ELEMENT_COUNT = 800;
+// perf and lite mode
+let liteMode = 'auto', frameTimes = [], perfChecked = false, badFrames = 0;
+const FULL_COUNT = 2000, LITE_COUNT = 800;
+const isPhone = /iPhone|Android.*Mobile|Mobile.*Android/i.test(navigator.userAgent);
+let liteActive = isPhone;
+if (liteActive) { console.log('lite mode (phone)'); perfChecked = true; }
 
-// Only pre-detect for actual mobile phones
-const isMobilePhone = /iPhone|Android.*Mobile|Mobile.*Android/i.test(navigator.userAgent);
+function getCount() { return liteActive ? LITE_COUNT : FULL_COUNT; }
 
-let isLiteModeActive = isMobilePhone;
-
-if (isLiteModeActive) {
-    console.log('⚡ Starting in Lite mode (mobile phone detected)');
-    performanceCheckDone = true;
-}
-
-function getElementCount() {
-    return isLiteModeActive ? LITE_ELEMENT_COUNT : FULL_ELEMENT_COUNT;
-}
-
-function checkPerformance() {
-    if (performanceCheckDone || liteMode !== 'auto') return;
-    
-    // Check every 10 frames
-    if (frameTimings.length >= 10) {
-        const avgFrameTime = frameTimings.reduce((a, b) => a + b, 0) / frameTimings.length;
-        const fps = 1000 / avgFrameTime;
-        
-        if (fps < 25) {
-            badFrameCount++;
-            // Trigger after 2 consecutive bad checks (20 frames of bad performance)
-            if (badFrameCount >= 2) {
-                console.log(`⚡ Auto-enabling Lite mode (detected ${fps.toFixed(1)} FPS)`);
-                isLiteModeActive = true;
-                reinitializeElements();
-                updateLiteButton();
-                performanceCheckDone = true;
-            }
-        } else {
-            // Good performance - we're done checking
-            console.log(`✨ Performance OK (${fps.toFixed(1)} FPS)`);
-            performanceCheckDone = true;
-        }
-        frameTimings = []; // Reset for next check
+function checkPerf() {
+    if (perfChecked || liteMode !== 'auto') return;
+    if (frameTimes.length >= 10) {
+        const fps = 1000 / (frameTimes.reduce((a, b) => a + b, 0) / frameTimes.length);
+        if (fps < 25) { badFrames++; if (badFrames >= 2) { console.log(`auto lite (${fps.toFixed(1)} fps)`); liteActive = true; reinit(); updateLiteBtn(); perfChecked = true; } }
+        else { console.log(`perf ok (${fps.toFixed(1)} fps)`); perfChecked = true; }
+        frameTimes = [];
     }
 }
 
-function toggleLiteMode() {
-    if (liteMode === 'auto') {
-        liteMode = 'on';
-        isLiteModeActive = true;
-    } else if (liteMode === 'on') {
-        liteMode = 'off';
-        isLiteModeActive = false;
-    } else {
-        liteMode = 'auto';
-        isLiteModeActive = false;
-        performanceCheckDone = false;
-        frameTimings = [];
-    }
-    reinitializeElements();
-    updateLiteButton();
+function toggleLite() {
+    if (liteMode === 'auto') { liteMode = 'on'; liteActive = true; }
+    else if (liteMode === 'on') { liteMode = 'off'; liteActive = false; }
+    else { liteMode = 'auto'; liteActive = false; perfChecked = false; frameTimes = []; }
+    reinit(); updateLiteBtn();
 }
 
-function updateLiteButton() {
+function updateLiteBtn() {
     const btn = document.getElementById('lite-btn');
-    if (btn) {
-        if (liteMode === 'auto') {
-            btn.textContent = `Lite: AUTO${isLiteModeActive ? ' (ON)' : ''}`;
-        } else {
-            btn.textContent = `Lite: ${liteMode.toUpperCase()}`;
-        }
-        btn.classList.toggle('active', isLiteModeActive);
+    if (btn) { btn.textContent = liteMode === 'auto' ? `Lite: AUTO${liteActive ? ' (ON)' : ''}` : `Lite: ${liteMode.toUpperCase()}`; btn.classList.toggle('active', liteActive); }
+}
+
+function reinit() {
+    const n = getCount(); makeElements(n);
+    elements.forEach(el => patterns[patternKeys[curPattern]].init(el, n));
+}
+
+function initPattern(key) { const n = getCount(); if (elements.length !== n) makeElements(n); elements.forEach(el => patterns[key].init(el, n)); }
+
+function switchTo(idx, smooth = true) {
+    const newIdx = ((idx % patternKeys.length) + patternKeys.length) % patternKeys.length;
+    if (newIdx === curPattern) return;
+    const n = getCount();
+    if (smooth && elements.length > 0) {
+        const t = performance.now() / 1000 * cfg.timeScale;
+        elements.forEach(el => { const pos = patterns[patternKeys[curPattern]].update(el, t, n); el.prevPos = { x: pos.x, y: pos.y, rot: pos.rot, scale: pos.scale }; });
+        transitionProg = 0; transitionStart = performance.now() / 1000;
     }
+    curPattern = newIdx; elements.forEach(el => patterns[patternKeys[curPattern]].init(el, n)); showName(patterns[patternKeys[curPattern]].name);
 }
 
-function reinitializeElements() {
-    const count = getElementCount();
-    const pattern = PATTERNS[patternKeys[currentPatternIndex]];
-    createElements(count);
-    elements.forEach(el => pattern.init(el, count));
-}
+function nextPattern() { switchTo(curPattern + 1, true); }
+function prevPattern() { switchTo(curPattern - 1, true); }
+function randomPattern() { let next; do { next = floor(random() * patternKeys.length); } while (next === curPattern && patternKeys.length > 1); switchTo(next, true); }
 
-function initPattern(patternKey) {
-    const pattern = PATTERNS[patternKey];
-    const count = getElementCount();
-    if (elements.length !== count) {
-        createElements(count);
-    }
-    elements.forEach(el => {
-        pattern.init(el, count);
-    });
-}
+function showName(name) { const el = document.getElementById('pattern-name'); el.textContent = name; el.classList.add('visible'); setTimeout(() => el.classList.remove('visible'), 3000); }
 
-function switchPattern(index, smooth = true) {
-    const newIndex = ((index % patternKeys.length) + patternKeys.length) % patternKeys.length;
-    
-    if (newIndex === currentPatternIndex) return;
-    
-    const count = getElementCount();
-    
-    if (smooth) {
-        const currentPattern = PATTERNS[patternKeys[currentPatternIndex]];
-        const t = performance.now() / 1000 * CONFIG.TIME_SCALE;
-        
-        elements.forEach((el, i) => {
-            const pos = currentPattern.update(el, t, count, CONFIG);
-            el.prevPos = { 
-                x: pos.x, 
-                y: pos.y, 
-                rotation: pos.rotation, 
-                scale: pos.scale 
-            };
-        });
-        
-        transitionProgress = 0;
-        transitionStartTime = performance.now() / 1000;
-    }
-    
-    currentPatternIndex = newIndex;
-    
-    const newPattern = PATTERNS[patternKeys[currentPatternIndex]];
-    elements.forEach(el => {
-        newPattern.init(el, count);
-    });
-    
-    showPatternName(newPattern.name);
-}
-
-function nextPattern() {
-    switchPattern(currentPatternIndex + 1, true);
-}
-
-function showPatternName(name) {
-    const el = document.getElementById('pattern-name');
-    el.textContent = name;
-    el.classList.add('visible');
-    setTimeout(() => el.classList.remove('visible'), 3000);
-}
-
-// Wildcard presets
-const WILDCARD_PRESETS = [
-    { name: "Calm Ocean", COLOR: { SPEED: 0.02, HUE_OFFSET: 0.55, SATURATION: 0.6 }, MOTION: { WAVE_INTENSITY: 0.5, BREATHING: 0.4, CHAOS: 0 } },
-    { name: "Fire Storm", COLOR: { SPEED: 0.05, HUE_OFFSET: 0.0, RAINBOW_SPREAD: 0.2, SATURATION: 0.9 }, MOTION: { CHAOS: 0.08, WAVE_INTENSITY: 0.7 } },
-    { name: "Ethereal", COLOR: { SPEED: 0.015, SATURATION: 0.45, VALUE: 1.0 }, VISUAL: { BASE_ALPHA: 0.6, TWINKLE_AMOUNT: 0.25 }, MOTION: { CHAOS: 0 } },
-    { name: "Hyperdrive", TIME_SCALE: 1.2, COLOR: { SPEED: 0.07 }, MOTION: { WAVE_INTENSITY: 0.8, CHAOS: 0 } },
-    { name: "Meditation", TIME_SCALE: 0.7, COLOR: { SPEED: 0.02 }, MOTION: { BREATHING: 0.5, CHAOS: 0, WAVE_INTENSITY: 0.4 } },
-    { name: "Disco", COLOR: { SPEED: 0.09, RAINBOW_SPREAD: 1.3 }, VISUAL: { PULSE_SPEED: 0.5, PULSE_AMOUNT: 0.12 }, MOTION: { CHAOS: 0 } },
-    { name: "Nebula", COLOR: { HUE_OFFSET: 0.75, SATURATION: 0.7, RAINBOW_SPREAD: 0.35 }, MOTION: { BREATHING: 0.4, CHAOS: 0 } },
-    { name: "Gentle Flow", MOTION: { CHAOS: 0.05, WAVE_INTENSITY: 0.6 }, TIME_SCALE: 0.9 }
+// wildcards
+const wildcards = [
+    { name: "Calm Ocean", color: { speed: 0.02, hueOffset: 0.55, sat: 0.6 }, motion: { waveInt: 0.5, breathing: 0.4, chaos: 0 } },
+    { name: "Fire Storm", color: { speed: 0.05, hueOffset: 0.0, spread: 0.2, sat: 0.9 }, motion: { chaos: 0.08, waveInt: 0.7 } },
+    { name: "Ethereal", color: { speed: 0.015, sat: 0.45, val: 1.0 }, visual: { baseAlpha: 0.6, twinkleAmt: 0.25 }, motion: { chaos: 0 } },
+    { name: "Hyperdrive", timeScale: 1.2, color: { speed: 0.07 }, motion: { waveInt: 0.8, chaos: 0 } },
+    { name: "Meditation", timeScale: 0.7, color: { speed: 0.02 }, motion: { breathing: 0.5, chaos: 0, waveInt: 0.4 } },
+    { name: "Disco", color: { speed: 0.09, spread: 1.3 }, visual: { pulseSpeed: 0.5, pulseAmt: 0.12 }, motion: { chaos: 0 } },
+    { name: "Nebula", color: { hueOffset: 0.75, sat: 0.7, spread: 0.35 }, motion: { breathing: 0.4, chaos: 0 } },
+    { name: "Gentle Flow", motion: { chaos: 0.05, waveInt: 0.6 }, timeScale: 0.9 }
 ];
 
 function applyWildcard() {
     if (random() > 0.5) {
-        const preset = WILDCARD_PRESETS[floor(random() * WILDCARD_PRESETS.length)];
-        console.log("🎲 Preset:", preset.name);
-        for (const [cat, vals] of Object.entries(preset)) {
-            if (cat === 'name') continue;
-            if (typeof vals === 'object') {
-                for (const [k, v] of Object.entries(vals)) {
-                    if (CONFIG[cat]?.[k] !== undefined) CONFIG[cat][k] = v;
-                }
-            } else if (CONFIG[cat] !== undefined) {
-                CONFIG[cat] = vals;
-            }
-        }
+        const preset = wildcards[floor(random() * wildcards.length)]; console.log("wildcard:", preset.name);
+        for (const [cat, vals] of Object.entries(preset)) { if (cat === 'name') continue;
+            if (typeof vals === 'object') { for (const [k, v] of Object.entries(vals)) { if (cfg[cat]?.[k] !== undefined) cfg[cat][k] = v; } }
+            else if (cfg[cat] !== undefined) cfg[cat] = vals; }
     } else {
-        console.log("🎲 Random");
-        CONFIG.TIME_SCALE = roundTo(0.7 + random() * 0.5);
-        CONFIG.COLOR.SPEED = roundTo(0.02 + random() * 0.06);
-        CONFIG.COLOR.HUE_OFFSET = roundTo(random());
-        CONFIG.COLOR.SATURATION = roundTo(0.6 + random() * 0.3);
-        CONFIG.COLOR.RAINBOW_SPREAD = roundTo(0.5 + random() * 0.8);
-        CONFIG.VISUAL.PULSE_SPEED = roundTo(0.25 + random() * 0.4);
-        CONFIG.VISUAL.PULSE_AMOUNT = roundTo(0.06 + random() * 0.1);
-        CONFIG.MOTION.CHAOS = roundTo(random() * 0.1);
-        CONFIG.MOTION.BREATHING = roundTo(random() * 0.3);
-        CONFIG.MOTION.WAVE_INTENSITY = roundTo(0.4 + random() * 0.35);
+        console.log("wildcard: random");
+        cfg.timeScale = round3(0.7 + random() * 0.5); cfg.color.speed = round3(0.02 + random() * 0.06); cfg.color.hueOffset = round3(random());
+        cfg.color.sat = round3(0.6 + random() * 0.3); cfg.color.spread = round3(0.5 + random() * 0.8);
+        cfg.visual.pulseSpeed = round3(0.25 + random() * 0.4); cfg.visual.pulseAmt = round3(0.06 + random() * 0.1);
+        cfg.motion.chaos = round3(random() * 0.1); cfg.motion.breathing = round3(random() * 0.3); cfg.motion.waveInt = round3(0.4 + random() * 0.35);
     }
+    // re-init pattern with new random seeds
+    const n = elements.length;
+    elements.forEach(el => patterns[patternKeys[curPattern]].init(el, n));
 }
 
-// Auto cycle
-let autoCycleTimer = null;
-function toggleAutoCycle() {
-    CONFIG.AUTO_CYCLE = !CONFIG.AUTO_CYCLE;
-    document.getElementById('auto-btn').textContent = `Auto: ${CONFIG.AUTO_CYCLE ? 'ON' : 'OFF'}`;
-    document.getElementById('auto-btn').classList.toggle('active', CONFIG.AUTO_CYCLE);
-    
-    if (CONFIG.AUTO_CYCLE) {
-        autoCycleTimer = setInterval(() => {
-            nextPattern();
-            if (random() > 0.6) applyWildcard();
-        }, CONFIG.AUTO_CYCLE_INTERVAL);
-    } else {
-        clearInterval(autoCycleTimer);
-    }
+let cycleTimer = null;
+function toggleAuto() {
+    cfg.autoCycle = !cfg.autoCycle;
+    document.getElementById('auto-btn').textContent = `Auto: ${cfg.autoCycle ? 'ON' : 'OFF'}`;
+    document.getElementById('auto-btn').classList.toggle('active', cfg.autoCycle);
+    if (cfg.autoCycle) cycleTimer = setInterval(() => { nextPattern(); if (random() > 0.6) applyWildcard(); }, cfg.cycleInterval);
+    else clearInterval(cycleTimer);
 }
 
-// Mouse influence
-function getMouseInfluence(posX, posY) {
+function getMouseFx(px, py) {
     if (!mouse.active) return { push: { x: 0, y: 0 }, hueShift: 0 };
-    
-    const dx = posX - mouse.x;
-    const dy = posY - mouse.y;
-    const dist = sqrt(dx * dx + dy * dy);
-    const radius = CONFIG.MOUSE.INFLUENCE_RADIUS;
-    
-    if (dist < radius && dist > 0.001) {
-        const t = 1 - dist / radius;
-        const influence = t * t * t * CONFIG.MOUSE.PUSH_STRENGTH;
-        const pushX = (dx / dist) * influence;
-        const pushY = (dy / dist) * influence;
-        const hueShift = t * t * CONFIG.MOUSE.HUE_SHIFT;
-        
-        return { push: { x: pushX, y: pushY }, hueShift };
-    }
-    
+    const dx = px - mouse.x, dy = py - mouse.y, dist = sqrt(dx * dx + dy * dy), r = cfg.mouse.radius;
+    if (dist < r && dist > 0.001) { const t = 1 - dist / r, infl = t * t * t * cfg.mouse.push;
+        return { push: { x: (dx / dist) * infl, y: (dy / dist) * infl }, hueShift: t * t * cfg.mouse.hueShift }; }
     return { push: { x: 0, y: 0 }, hueShift: 0 };
 }
 
-// Main render loop
-const BASE_SIZE = 28;
-let lastFrameTime = 0;
+// main render loop
+const BASE_SZ = 28;
+let lastFrame = 0;
 
-function render(timestamp) {
-    if (lastFrameTime > 0) {
-        const frameTime = timestamp - lastFrameTime;
-        frameTimings.push(frameTime);
-        if (frameTimings.length > 120) frameTimings.shift();
-        checkPerformance();
-    }
-    lastFrameTime = timestamp;
+function render(ts) {
+    if (lastFrame > 0) { frameTimes.push(ts - lastFrame); if (frameTimes.length > 120) frameTimes.shift(); checkPerf(); }
+    lastFrame = ts;
+    const t = (ts / 1000) * cfg.timeScale;
+    mouse.x = lerp(mouse.x, mouseTarget.x, 0.1); mouse.y = lerp(mouse.y, mouseTarget.y, 0.1);
     
-    const t = (timestamp / 1000) * CONFIG.TIME_SCALE;
+    // background - check if pattern has custom bg
+    const pat = patterns[patternKeys[curPattern]];
+    if (pat.customBg && pat.drawBg) pat.drawBg(t);
+    else if (!liteActive || ts % 2 < 1) drawBg(t);
     
-    mouse.x = lerp(mouse.x, targetMouse.x, 0.1);
-    mouse.y = lerp(mouse.y, targetMouse.y, 0.1);
+    ctx.clearRect(0, 0, w, h);
+    const n = elements.length;
     
-    if (!isLiteModeActive || timestamp % 2 < 1) {
-        drawBackground(t);
-    }
+    const basePulse = 1 + sin(t * cfg.visual.pulseSpeed) * cfg.visual.pulseAmt;
+    const globalTwinkle = sin(t * cfg.visual.twinkleSpeed * 0.5) * 0.5 + 0.5;
     
-    ctx.clearRect(0, 0, width, height);
+    if (transitionProg < 1) { transitionProg = min(1, (ts / 1000 - transitionStart) / cfg.transition.dur); }
+    const tEase = easeInOut(transitionProg);
     
-    const pattern = PATTERNS[patternKeys[currentPatternIndex]];
-    const count = elements.length;
-    const basePulse = 1 + sin(t * CONFIG.VISUAL.PULSE_SPEED) * CONFIG.VISUAL.PULSE_AMOUNT;
-    const globalTwinkle = sin(t * CONFIG.VISUAL.TWINKLE_SPEED * 0.5) * 0.5 + 0.5;
-    
-    if (transitionProgress < 1) {
-        const elapsed = timestamp / 1000 - transitionStartTime;
-        transitionProgress = min(1, elapsed / CONFIG.TRANSITION.DURATION);
-    }
-    const transitionEase = easeInOutCubic(transitionProgress);
-    
-    // Handle text formation
+    // text formation
     let textBlend = 0;
-    if (textFormationActive) {
-        const elapsed = timestamp / 1000 - textFormationStart;
-        const totalDuration = TEXT_FORMATION_DURATION + TEXT_HOLD_DURATION + TEXT_RELEASE_DURATION;
-        
-        if (elapsed < TEXT_FORMATION_DURATION) {
-            textBlend = easeInOutCubic(elapsed / TEXT_FORMATION_DURATION);
-        } else if (elapsed < TEXT_FORMATION_DURATION + TEXT_HOLD_DURATION) {
-            textBlend = 1;
-        } else if (elapsed < totalDuration) {
-            const releaseProgress = (elapsed - TEXT_FORMATION_DURATION - TEXT_HOLD_DURATION) / TEXT_RELEASE_DURATION;
-            textBlend = 1 - easeInOutCubic(releaseProgress);
-        } else {
-            textFormationActive = false;
-            textBlend = 0;
-        }
+    if (textActive) {
+        const elapsed = ts / 1000 - textStart, total = TEXT_FORM_DUR + TEXT_HOLD_DUR + TEXT_RELEASE_DUR;
+        if (elapsed < TEXT_FORM_DUR) textBlend = easeInOut(elapsed / TEXT_FORM_DUR);
+        else if (elapsed < TEXT_FORM_DUR + TEXT_HOLD_DUR) textBlend = 1;
+        else if (elapsed < total) textBlend = 1 - easeInOut((elapsed - TEXT_FORM_DUR - TEXT_HOLD_DUR) / TEXT_RELEASE_DUR);
+        else { textActive = false; textBlend = 0; }
     }
     
-    for (let i = 0; i < count; i++) {
+    for (let i = 0; i < n; i++) {
         const el = elements[i];
-        let pos = pattern.update(el, t, count, CONFIG);
+        let pos = pat.update(el, t, n);
+        if (!pos || pos.alpha < 0.01 || pos.scale < 0.01) continue;
         
-        if (transitionProgress < 1 && el.prevPos) {
-            pos = {
-                x: lerp(el.prevPos.x, pos.x, transitionEase),
-                y: lerp(el.prevPos.y, pos.y, transitionEase),
-                rotation: lerp(el.prevPos.rotation, pos.rotation, transitionEase),
-                scale: lerp(el.prevPos.scale, pos.scale, transitionEase)
-            };
+        // transition blend
+        if (transitionProg < 1 && el.prevPos) {
+            pos = { x: lerp(el.prevPos.x, pos.x, tEase), y: lerp(el.prevPos.y, pos.y, tEase), rot: lerp(el.prevPos.rot, pos.rot, tEase), scale: lerp(el.prevPos.scale, pos.scale, tEase) };
         }
         
-        // Blend with text/mandala position if active
-        if (textBlend > 0 && textPoints[i]) {
-            const pt = textPoints[i];
-            
+        // text blend
+        if (textBlend > 0 && textPts[i]) {
+            const pt = textPts[i];
             if (pt.type === 'mandala') {
-                // Mandala ring particle - orbit around center
-                const ringTime = t * pt.rotationSpeed;
-                const currentAngle = pt.baseAngle + ringTime;
-                const pulse = sin(t * pt.pulseSpeed + pt.baseAngle) * pt.pulseAmount;
-                const currentRadius = pt.baseRadius + pulse;
-                
-                // Add some wobble/shimmer to make it more interesting
-                const shimmer = sin(t * 3 + pt.baseAngle * 3) * 0.008;
-                const verticalWobble = cos(t * 2.5 + pt.baseAngle * 2) * 0.01;
-                
-                const mandalaX = 0.5 + cos(currentAngle) * (currentRadius + shimmer);
-                const mandalaY = 0.5 + sin(currentAngle) * (currentRadius + shimmer) + verticalWobble;
-                
-                // Mandala particles spin faster
-                const mandalaRotation = currentAngle * 80 + t * 60 + pt.ring * 30;
-                
-                // Scale based on ring - outer rings slightly smaller
-                const mandalaScale = 0.35 - pt.ring * 0.03 + sin(t * 2 + pt.baseAngle) * 0.08;
-                
-                pos = {
-                    x: lerp(pos.x, mandalaX, textBlend),
-                    y: lerp(pos.y, mandalaY, textBlend),
-                    scale: lerp(pos.scale, mandalaScale, textBlend),
-                    rotation: lerp(pos.rotation, mandalaRotation, textBlend)
-                };
+                const curAng = pt.baseAngle + t * pt.rotSpd, curR = pt.baseRadius + sin(t * pt.pulseSpd + pt.baseAngle) * pt.pulseAmt + sin(t * 3 + pt.baseAngle * 3) * 0.008;
+                const mx = 0.5 + cos(curAng) * curR, my = 0.5 + sin(curAng) * curR + cos(t * 2.5 + pt.baseAngle * 2) * 0.01;
+                pos = { x: lerp(pos.x, mx, textBlend), y: lerp(pos.y, my, textBlend), scale: lerp(pos.scale, 0.35 - pt.ring * 0.03 + sin(t * 2 + pt.baseAngle) * 0.08, textBlend), rot: lerp(pos.rot, curAng * 80 + t * 60 + pt.ring * 30, textBlend) };
             } else {
-                // Text particle - size depends on which text
-                const waveOffset = sin(t * 1.5 + pt.wave) * 0.004 * textBlend;
-                const depthOffset = pt.depth * sin(t * 1.2) * textBlend;
-                
-                // SAT2 gets bigger triangles, TRDUTSCO gets 25% smaller
-                const textScale = currentTextTarget === 'SAT2' ? 0.38 : 0.28;
-                
-                pos = {
-                    x: lerp(pos.x, pt.x + waveOffset, textBlend),
-                    y: lerp(pos.y, pt.y + depthOffset, textBlend),
-                    scale: lerp(pos.scale, textScale, textBlend),
-                    rotation: lerp(pos.rotation, sin(t * 0.5 + pt.wave) * 8, textBlend)
-                };
+                const tScale = textTarget === 'SAT2' ? 0.38 : 0.28;
+                pos = { x: lerp(pos.x, pt.x + sin(t * 1.5 + pt.wave) * 0.004 * textBlend, textBlend), y: lerp(pos.y, pt.y + pt.depth * sin(t * 1.2) * textBlend, textBlend), scale: lerp(pos.scale, tScale, textBlend), rot: lerp(pos.rot, sin(t * 0.5 + pt.wave) * 8, textBlend) };
             }
         }
         
-        const mouseEffect = getMouseInfluence(pos.x, pos.y);
-        pos.x += mouseEffect.push.x;
-        pos.y += mouseEffect.push.y;
+        // mouse
+        const mfx = getMouseFx(pos.x, pos.y);
+        pos.x += mfx.push.x; pos.y += mfx.push.y;
         
-        // Calculate hue - mandala particles get special rainbow treatment during text formation
-        let hue;
-        if (textBlend > 0 && textPoints[i] && textPoints[i].type === 'mandala') {
-            const pt = textPoints[i];
-            // Mandala rings get a beautiful rainbow effect based on angle
-            const ringHue = (pt.baseAngle / TAU + t * 0.1 + pt.ring * 0.15) % 1;
-            hue = lerp(
-                (t * CONFIG.COLOR.SPEED + CONFIG.COLOR.HUE_OFFSET + (i / count) * CONFIG.COLOR.RAINBOW_SPREAD + el.colorOffset) % 1,
-                ringHue,
-                textBlend
-            );
+        // color - use pattern's custom color if provided, otherwise calculate
+        let hue, sat, val, alpha;
+        if (pos.hue !== undefined) {
+            // pattern provides its own colors (like sailboat)
+            hue = (pos.hue + mfx.hueShift) % 1;
+            sat = pos.sat !== undefined ? pos.sat : cfg.color.sat;
+            val = pos.val !== undefined ? pos.val : cfg.color.val;
+            alpha = pos.alpha !== undefined ? pos.alpha : cfg.visual.baseAlpha;
         } else {
-            hue = (t * CONFIG.COLOR.SPEED + CONFIG.COLOR.HUE_OFFSET + (i / count) * CONFIG.COLOR.RAINBOW_SPREAD + el.colorOffset) % 1;
-        }
-        hue = (hue + mouseEffect.hueShift) % 1;
-        
-        const twinkle = 1 - ((sin(t * CONFIG.VISUAL.TWINKLE_SPEED + el.twinklePhase) * 0.5 + 0.5) * globalTwinkle * CONFIG.VISUAL.TWINKLE_AMOUNT);
-        let finalScale = clamp(pos.scale * el.sizeVariation * basePulse, 0.15, 1.5);
-        
-        // Mandala particles glow brighter during formation
-        let alpha;
-        if (textBlend > 0 && textPoints[i] && textPoints[i].type === 'mandala') {
-            alpha = clamp(CONFIG.VISUAL.BASE_ALPHA * twinkle * (1 + textBlend * 0.3), 0.2, 1.0);
-        } else {
-            alpha = clamp(CONFIG.VISUAL.BASE_ALPHA * twinkle, 0.2, 1.0);
+            // standard color calculation
+            if (textBlend > 0 && textPts[i] && textPts[i].type === 'mandala') {
+                const pt = textPts[i], ringHue = (pt.baseAngle / TAU + t * 0.1 + pt.ring * 0.15) % 1;
+                hue = lerp((t * cfg.color.speed + cfg.color.hueOffset + (i / n) * cfg.color.spread + el.colorOff) % 1, ringHue, textBlend);
+            } else hue = (t * cfg.color.speed + cfg.color.hueOffset + (i / n) * cfg.color.spread + el.colorOff) % 1;
+            hue = (hue + mfx.hueShift) % 1;
+            sat = cfg.color.sat;
+            val = cfg.color.val;
+            const twinkle = 1 - ((sin(t * cfg.visual.twinkleSpeed + el.twinklePhase) * 0.5 + 0.5) * globalTwinkle * cfg.visual.twinkleAmt);
+            alpha = clamp(cfg.visual.baseAlpha * twinkle, 0.2, 1.0);
+            if (textBlend > 0 && textPts[i] && textPts[i].type === 'mandala') alpha = clamp(alpha * (1 + textBlend * 0.3), 0.2, 1.0);
         }
         
-        drawTriangle(
-            pos.x * width,
-            pos.y * height,
-            BASE_SIZE * finalScale * scale,
-            pos.rotation * PI / 180,
-            hue,
-            alpha
-        );
+        const finalScale = clamp(pos.scale * el.sizeVar * basePulse, 0.15, 1.5);
+        drawTri(pos.x * w, pos.y * h, BASE_SZ * finalScale * scale, (pos.rot || 0) * PI / 180, hue, alpha, sat, val);
     }
     
     requestAnimationFrame(render);
 }
 
-// UI Controls
+// ui
 let uiVisible = true;
-
 document.querySelectorAll('.control-btn').forEach(btn => {
-    btn.addEventListener('click', (e) => {
+    btn.addEventListener('click', e => {
         e.stopPropagation();
-        const action = btn.dataset.action;
-        
-        switch(action) {
-            case 'next':
-                nextPattern();
-                break;
-            case 'wildcard':
-                applyWildcard();
-                break;
-            case 'hide':
-                uiVisible = !uiVisible;
-                document.getElementById('info').classList.toggle('hidden', !uiVisible);
-                document.querySelector('.mouse-hint').classList.toggle('hidden', !uiVisible);
-                break;
-            case 'sat2':
-                triggerTextFormation('SAT2');
-                break;
-            case 'auto':
-                toggleAutoCycle();
-                break;
-            case 'lite':
-                toggleLiteMode();
-                break;
-            case 'pattern':
-                switchPattern(parseInt(btn.dataset.pattern), true);
-                break;
+        switch(btn.dataset.action) {
+            case 'prev': prevPattern(); break;
+            case 'next': nextPattern(); break;
+            case 'random': randomPattern(); break;
+            case 'wildcard': applyWildcard(); break;
+            case 'hide': uiVisible = !uiVisible; document.getElementById('info').classList.toggle('hidden', !uiVisible); document.querySelector('.mouse-hint').classList.toggle('hidden', !uiVisible); break;
+            case 'sat2': triggerText('SAT2'); break;
+            case 'auto': toggleAuto(); break;
+            case 'lite': toggleLite(); break;
         }
     });
 });
 
-document.addEventListener('keydown', (e) => {
+document.addEventListener('keydown', e => {
     switch(e.key.toLowerCase()) {
-        case ' ':
-            e.preventDefault();
-            nextPattern();
-            break;
-        case 'w':
-            applyWildcard();
-            break;
-        case 'h':
-            uiVisible = !uiVisible;
-            document.getElementById('info').classList.toggle('hidden', !uiVisible);
-            document.querySelector('.mouse-hint').classList.toggle('hidden', !uiVisible);
-            break;
-        case 'a':
-            toggleAutoCycle();
-            break;
-        case 'l':
-            toggleLiteMode();
-            break;
-        case 'p':
-            console.log('Current CONFIG:', JSON.stringify(CONFIG, null, 2));
-            break;
-        case '1': case '2': case '3': case '4': case '5':
-        case '6': case '7': case '8': case '9': case '0':
-            switchPattern(e.key === '0' ? 9 : parseInt(e.key) - 1, true);
-            break;
+        case ' ': case 'arrowright': e.preventDefault(); nextPattern(); break;
+        case 'arrowleft': e.preventDefault(); prevPattern(); break;
+        case 'r': randomPattern(); break;
+        case 'w': applyWildcard(); break;
+        case 'h': uiVisible = !uiVisible; document.getElementById('info').classList.toggle('hidden', !uiVisible); document.querySelector('.mouse-hint').classList.toggle('hidden', !uiVisible); break;
+        case 'a': toggleAuto(); break;
+        case 'l': toggleLite(); break;
+        case 'p': console.log('cfg:', JSON.stringify(cfg, null, 2)); break;
     }
 });
 
+// init
 initPattern(patternKeys[0]);
-updateLiteButton();
+updateLiteBtn();
 requestAnimationFrame(render);
-console.log("✨ Visualizer ready! Press L for Lite mode if performance is poor");
+console.log("ready - arrows to navigate, R for random, L for lite");
     </script>
 </body>
 </html>
