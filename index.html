@@ -786,7 +786,8 @@ document.addEventListener('keydown', e => {
 });
 
 // init
-initPattern(patternKeys[0]);
+curPattern = floor(random() * patternKeys.length);
+initPattern(patternKeys[curPattern]);
 updateLiteBtn();
 requestAnimationFrame(render);
 console.log("ready - arrows to navigate, R for random, L for lite");
