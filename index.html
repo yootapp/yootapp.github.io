@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>🔱Yoot</title>
+    <title>Visual Patterns</title>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@200;300;400&display=swap');
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -43,7 +43,7 @@
             <span class="control-btn" data-action="lite" id="lite-btn">Lite: AUTO</span>
         </div>
     </div>
-    <div class="mouse-hint">Click for SAT2</div>
+    <div class="mouse-hint">Click for SAT2 • Triple-click for TRDUTSCO</div>
     
     <script>
 // config
@@ -587,7 +587,7 @@ const patternKeys = Object.keys(patterns);
 
 // perf
 let liteMode = 'auto', frameTimes = [], perfChecked = false, badFrames = 0;
-const FULL_COUNT = 3000, LITE_COUNT = 1200; // higher counts now that we have WebGL
+const FULL_COUNT = 2000, LITE_COUNT = 800;
 const isPhone = /iPhone|Android.*Mobile|Mobile.*Android/i.test(navigator.userAgent);
 let liteActive = isPhone;
 if (liteActive) { console.log('lite mode (phone)'); perfChecked = true; }
@@ -653,21 +653,19 @@ const wildcards = [
     { name: "Gentle Flow", motion: { chaos: 0.05, waveInt: 0.6 }, timeScale: 0.9 }
 ];
 
+let timeOffset = 0; // Added time offset for wildcard jumps
+
 function applyWildcard() {
-    if (random() > 0.5) {
-        const preset = wildcards[floor(random() * wildcards.length)]; console.log("wildcard:", preset.name);
-        for (const [cat, vals] of Object.entries(preset)) { if (cat === 'name') continue;
-            if (typeof vals === 'object') { for (const [k, v] of Object.entries(vals)) { if (cfg[cat]?.[k] !== undefined) cfg[cat][k] = v; } }
-            else if (cfg[cat] !== undefined) cfg[cat] = vals; }
-    } else {
-        console.log("wildcard: random");
-        cfg.timeScale = round3(0.7 + random() * 0.5); cfg.color.speed = round3(0.02 + random() * 0.06); cfg.color.hueOffset = round3(random());
-        cfg.color.sat = round3(0.6 + random() * 0.3); cfg.color.spread = round3(0.5 + random() * 0.8);
-        cfg.visual.pulseSpeed = round3(0.25 + random() * 0.4); cfg.visual.pulseAmt = round3(0.06 + random() * 0.1);
-        cfg.motion.chaos = round3(random() * 0.1); cfg.motion.breathing = round3(random() * 0.3); cfg.motion.waveInt = round3(0.4 + random() * 0.35);
-    }
-    const n = elements.length;
-    elements.forEach(el => patterns[patternKeys[curPattern]].init(el, n));
+    // Jump to a random point in time - this is what makes the spiral look different
+    timeOffset = random() * 10000; // 0-10000 seconds of offset
+    
+    // Also randomize some visual params
+    cfg.color.hueOffset = random();
+    cfg.color.speed = round3(0.02 + random() * 0.06);
+    cfg.spiral.rotSpeed = round3(0.0008 + random() * 0.002);
+    cfg.spiral.wiggleAmp = round3(0.1 + random() * 0.25);
+    
+    console.log("wildcard: time jump to t+" + timeOffset.toFixed(0));
 }
 
 let cycleTimer = null;
@@ -693,7 +691,7 @@ let lastFrame = 0;
 function render(ts) {
     if (lastFrame > 0) { frameTimes.push(ts - lastFrame); if (frameTimes.length > 120) frameTimes.shift(); checkPerf(); }
     lastFrame = ts;
-    const t = (ts / 1000) * cfg.timeScale;
+    const t = (ts / 1000) * cfg.timeScale + timeOffset;
     mouse.x = lerp(mouse.x, mouseTarget.x, 0.1); mouse.y = lerp(mouse.y, mouseTarget.y, 0.1);
     
     // background
