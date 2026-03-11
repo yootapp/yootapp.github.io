@@ -1,0 +1,2452 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Barcode Generator</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔱</text></svg>">
+<script src="bwip-js.min.js"></script>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: #282C34;
+    font-family: Consolas, monospace;
+    font-size: 14px;
+    margin: 0;
+    overflow: hidden;
+    width: 100vw;
+    height: 100vh;
+    position: relative;
+  }
+
+  /* Interactive dot grid canvas */
+  #dot-canvas {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .window {
+    background: #c0c0c0;
+    border: 3px solid;
+    border-color: #ffffff #808080 #808080 #ffffff;
+    width: 720px;
+    position: absolute;
+    min-width: 320px;
+    min-height: 200px;
+    z-index: 1;
+  }
+
+  .window.maximized {
+    width: 100vw !important;
+    height: 100vh !important;
+    left: 0 !important;
+    top: 0 !important;
+  }
+
+  .window.minimized {
+    width: 360px !important;
+    min-height: 0;
+    height: auto !important;
+  }
+
+  .window.minimized .window-body {
+    display: none;
+  }
+
+  /* Resize handles */
+  .resize-handle {
+    position: absolute;
+    z-index: 10;
+  }
+  .resize-n { top: -4px; left: 4px; right: 4px; height: 8px; cursor: n-resize; }
+  .resize-s { bottom: -4px; left: 4px; right: 4px; height: 8px; cursor: s-resize; }
+  .resize-e { right: -4px; top: 4px; bottom: 4px; width: 8px; cursor: e-resize; }
+  .resize-w { left: -4px; top: 4px; bottom: 4px; width: 8px; cursor: w-resize; }
+  .resize-nw { top: -4px; left: -4px; width: 12px; height: 12px; cursor: nw-resize; }
+  .resize-ne { top: -4px; right: -4px; width: 12px; height: 12px; cursor: ne-resize; }
+  .resize-sw { bottom: -4px; left: -4px; width: 12px; height: 12px; cursor: sw-resize; }
+  .resize-se { bottom: -4px; right: -4px; width: 12px; height: 12px; cursor: se-resize; }
+
+  .window.maximized .resize-handle,
+  .window.minimized .resize-handle {
+    display: none;
+  }
+
+  .title-bar {
+    background: linear-gradient(90deg, #000080, #1084d0);
+    color: #ffffff;
+    font-weight: bold;
+    font-size: 12px;
+    padding: 5px 4px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    user-select: none;
+    cursor: grab;
+  }
+
+  .title-bar:active {
+    cursor: grabbing;
+  }
+
+  .title-bar-text {
+    flex: 1;
+  }
+
+  .title-bar-controls {
+    display: flex;
+    gap: 0px;
+    margin-left: auto;
+  }
+
+  .title-bar-controls .btn-close {
+    margin-left: 2px;
+  }
+
+  .title-bar-controls button {
+    width: 18px;
+    height: 16px;
+    background: #c0c0c0;
+    border: 1px solid;
+    border-color: #ffffff #000000 #000000 #ffffff;
+    box-shadow: inset 1px 1px 0 #dfdfdf, inset -1px -1px 0 #808080;
+    font-size: 0;
+    line-height: 0;
+    cursor: pointer;
+    padding: 0;
+    position: relative;
+    color: transparent;
+    overflow: hidden;
+  }
+
+  .title-bar-controls button:active {
+    border-color: #000000 #ffffff #ffffff #000000;
+    box-shadow: inset 1px 1px 0 #808080, inset -1px -1px 0 #dfdfdf;
+  }
+
+  .title-bar-controls button:active::before,
+  .title-bar-controls button:active::after {
+    transform: translate(1px, 1px);
+  }
+
+  /* Minimize: small bar at bottom-left */
+  .btn-minimize::after {
+    content: '';
+    position: absolute;
+    bottom: 3px;
+    left: 4px;
+    width: 6px;
+    height: 2px;
+    background: #000;
+  }
+
+  /* Maximize: rectangle with thick top border */
+  .btn-maximize::after {
+    content: '';
+    position: absolute;
+    top: 3px;
+    left: 4px;
+    width: 9px;
+    height: 8px;
+    border: 1px solid #000;
+    border-top-width: 2px;
+    background: transparent;
+    box-sizing: border-box;
+  }
+
+  /* Close: pixel X using box-shadows (centered in 16x14 button, accounting for 1px border + 1px inset) */
+  .btn-close::after {
+    content: '';
+    position: absolute;
+    top: 1px;
+    left: 1px;
+    width: 1px;
+    height: 1px;
+    background: transparent;
+    box-shadow:
+      3px 2px 0 0 #000,  4px 2px 0 0 #000,  9px 2px 0 0 #000, 10px 2px 0 0 #000,
+      4px 3px 0 0 #000,  5px 3px 0 0 #000,  8px 3px 0 0 #000,  9px 3px 0 0 #000,
+      5px 4px 0 0 #000,  6px 4px 0 0 #000,  7px 4px 0 0 #000,  8px 4px 0 0 #000,
+      6px 5px 0 0 #000,  7px 5px 0 0 #000,
+      5px 6px 0 0 #000,  6px 6px 0 0 #000,  7px 6px 0 0 #000,  8px 6px 0 0 #000,
+      4px 7px 0 0 #000,  5px 7px 0 0 #000,  8px 7px 0 0 #000,  9px 7px 0 0 #000,
+      3px 8px 0 0 #000,  4px 8px 0 0 #000,  9px 8px 0 0 #000, 10px 8px 0 0 #000;
+  }
+
+  .window-body {
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    flex: 1;
+    min-height: 0;
+  }
+
+  .window.maximized,
+  .window:not(.minimized) {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .field-row {
+    display: flex;
+    align-items: center;
+    margin-bottom: 16px;
+  }
+
+  .field-row label {
+    width: 72px;
+    text-align: right;
+    margin-right: 12px;
+    flex-shrink: 0;
+  }
+
+  input[type="text"] {
+    flex: 1;
+    font-family: inherit;
+    font-size: 14px;
+    padding: 4px 8px;
+    border: 2px solid;
+    border-color: #808080 #ffffff #ffffff #808080;
+    background: #ffffff;
+    outline: none;
+    height: 30px;
+  }
+
+  .radio-group {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+  }
+
+  .radio-group label {
+    width: auto;
+    margin-right: 0;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+  }
+
+  input[type="radio"] {
+    margin: 0;
+    cursor: pointer;
+    width: 16px;
+    height: 16px;
+  }
+
+  .output-panel {
+    border: 2px solid;
+    border-color: #808080 #ffffff #ffffff #808080;
+    background: #ffffff;
+    min-height: 120px;
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 8px;
+    margin-bottom: 12px;
+    overflow: hidden;
+    min-width: 0;
+  }
+
+  .output-panel img {
+    max-width: 100%;
+    max-height: 100%;
+    min-height: 0;
+    min-width: 0;
+    object-fit: contain;
+    image-rendering: pixelated;
+  }
+
+  .output-panel.multi-barcode {
+    flex-wrap: wrap;
+    align-items: flex-start;
+    justify-content: center;
+    gap: 12px;
+    overflow-y: auto;
+  }
+
+  .output-panel.multi-barcode img {
+    max-width: 48%;
+    max-height: 200px;
+    flex-shrink: 0;
+  }
+
+  .output-panel .placeholder {
+    color: #808080;
+    font-style: italic;
+    font-size: 15px;
+    white-space: nowrap;
+  }
+
+  .status-bar {
+    border: 2px solid;
+    border-color: #808080 #ffffff #ffffff #808080;
+    padding: 4px 8px;
+    font-size: 14px;
+    color: #000;
+    background: #c0c0c0;
+  }
+
+  .status-bar.error {
+    color: #cc0000;
+  }
+
+  /* Custom dropdown trigger */
+  .custom-dropdown {
+    flex: 1;
+    position: relative;
+  }
+
+  .dropdown-trigger {
+    width: 100%;
+    height: 30px;
+    background: #ffffff;
+    border: 2px solid;
+    border-color: #808080 #ffffff #ffffff #808080;
+    padding: 4px 28px 4px 8px;
+    font-family: inherit;
+    font-size: 14px;
+    cursor: pointer;
+    user-select: none;
+    display: flex;
+    align-items: center;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    position: relative;
+  }
+
+  .dropdown-arrow {
+    position: absolute;
+    right: 2px;
+    top: 2px;
+    width: 22px;
+    height: calc(100% - 4px);
+    background: #c0c0c0;
+    border: 2px solid;
+    border-color: #ffffff #808080 #808080 #ffffff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    pointer-events: none;
+  }
+
+  .dropdown-trigger:active .dropdown-arrow {
+    border-color: #808080 #ffffff #ffffff #808080;
+  }
+
+  /* Popup window */
+  .type-popup {
+    display: none;
+    position: absolute;
+    top: 100%;
+    left: 0;
+    margin-top: 2px;
+    z-index: 1000;
+    background: #c0c0c0;
+    border: 3px solid;
+    border-color: #ffffff #808080 #808080 #ffffff;
+    width: 460px;
+  }
+
+  .type-popup.open {
+    display: block;
+  }
+
+  .popup-title-bar {
+    background: linear-gradient(90deg, #000080, #1084d0);
+    color: #ffffff;
+    font-weight: bold;
+    font-size: 14px;
+    padding: 3px 6px;
+    user-select: none;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .popup-title-icon {
+    width: 16px;
+    height: 16px;
+    background: #c0c0c0;
+    border: 1px solid #808080;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 9px;
+    color: #000;
+    flex-shrink: 0;
+  }
+
+  .popup-body {
+    padding: 6px;
+  }
+
+  .popup-list {
+    border: 2px solid;
+    border-color: #808080 #ffffff #ffffff #808080;
+    background: #ffffff;
+    max-height: 380px;
+    overflow-y: auto;
+  }
+
+  .popup-section-header {
+    padding: 3px 8px;
+    font-weight: bold;
+    font-size: 14px;
+    color: #000;
+    background: #c0c0c0;
+    border-bottom: 1px solid #808080;
+    user-select: none;
+  }
+
+  .popup-item {
+    padding: 4px 8px 4px 12px;
+    font-size: 14px;
+    cursor: pointer;
+    user-select: none;
+    white-space: nowrap;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .popup-item:hover,
+  .popup-item.hovered {
+    background: #000080;
+    color: #ffffff;
+  }
+
+  .popup-item.selected {
+    font-weight: bold;
+  }
+
+  .popup-item-preview {
+    width: 60px;
+    height: 24px;
+    object-fit: contain;
+    flex-shrink: 0;
+    image-rendering: pixelated;
+  }
+
+  .popup-item:hover .popup-item-preview,
+  .popup-item.hovered .popup-item-preview {
+    filter: invert(1);
+  }
+
+  .popup-description {
+    margin-top: 6px;
+    border: 2px solid;
+    border-color: #808080 #ffffff #ffffff #808080;
+    background: #c0c0c0;
+    padding: 4px 8px;
+    font-size: 13px;
+    color: #000;
+    min-height: 36px;
+    line-height: 1.3;
+  }
+
+  /* Pop Out button row */
+  .button-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+
+  .xp-button {
+    font-family: inherit;
+    font-size: 14px;
+    padding: 4px 16px;
+    background: #c0c0c0;
+    border: 2px solid;
+    border-color: #ffffff #808080 #808080 #ffffff;
+    cursor: pointer;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: #000;
+  }
+
+  .xp-button:active:not(:disabled) {
+    border-color: #808080 #ffffff #ffffff #808080;
+  }
+
+  .xp-button:disabled {
+    color: #808080;
+    cursor: default;
+  }
+
+  .popout-btn {
+    background: #000080;
+    color: #ffffff;
+    font-weight: bold;
+  }
+
+  /* Pop-out windows */
+  .popout-window {
+    min-width: 200px;
+    min-height: 120px;
+  }
+
+  .popout-window .window-body {
+    padding: 12px;
+  }
+
+  .popout-window .status-bar {
+    text-align: center;
+  }
+
+  .popout-window .output-panel {
+    margin-bottom: 8px;
+    min-height: 60px;
+  }
+
+  /* Window focus / z-index management */
+  .window.focused .title-bar {
+    background: linear-gradient(90deg, #000080, #1084d0);
+  }
+
+  .window:not(.focused) .title-bar {
+    background: linear-gradient(90deg, #808080, #b0b0b0);
+  }
+
+  /* Settings button */
+  .settings-btn {
+    background: #cc0000;
+    color: #ffffff;
+    font-weight: bold;
+    font-size: 14px;
+    padding: 4px 10px;
+  }
+
+  /* Settings popup */
+  .settings-popup {
+    display: none;
+    position: absolute;
+    bottom: 100%;
+    right: 0;
+    margin-bottom: 4px;
+    z-index: 1000;
+    background: #c0c0c0;
+    border: 3px solid;
+    border-color: #ffffff #808080 #808080 #ffffff;
+    width: 260px;
+  }
+
+  .settings-popup.open {
+    display: block;
+  }
+
+  .settings-popup .popup-body {
+    padding: 10px 12px;
+  }
+
+  .settings-popup label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+    font-size: 13px;
+    margin-bottom: 6px;
+  }
+
+  .settings-popup label:last-child {
+    margin-bottom: 0;
+  }
+
+  .settings-popup hr {
+    border: none;
+    border-top: 1px solid #808080;
+    border-bottom: 1px solid #ffffff;
+    margin: 8px 0;
+  }
+
+  .settings-popup .xp-button {
+    font-size: 13px;
+    height: 24px;
+    padding: 2px 12px;
+  }
+
+  .popup-close-btn {
+    width: 18px;
+    height: 16px;
+    background: #c0c0c0;
+    border: 1px solid;
+    border-color: #ffffff #000000 #000000 #ffffff;
+    box-shadow: inset 1px 1px 0 #dfdfdf, inset -1px -1px 0 #808080;
+    font-size: 0;
+    line-height: 0;
+    cursor: pointer;
+    padding: 0;
+    position: relative;
+    margin-left: auto;
+    color: transparent;
+    overflow: hidden;
+  }
+
+  .popup-close-btn:active {
+    border-color: #000000 #ffffff #ffffff #000000;
+    box-shadow: inset 1px 1px 0 #808080, inset -1px -1px 0 #dfdfdf;
+  }
+
+  .popup-close-btn::after {
+    content: '';
+    position: absolute;
+    top: 1px;
+    left: 1px;
+    width: 1px;
+    height: 1px;
+    background: transparent;
+    box-shadow:
+      3px 2px 0 0 #000,  4px 2px 0 0 #000,  9px 2px 0 0 #000, 10px 2px 0 0 #000,
+      4px 3px 0 0 #000,  5px 3px 0 0 #000,  8px 3px 0 0 #000,  9px 3px 0 0 #000,
+      5px 4px 0 0 #000,  6px 4px 0 0 #000,  7px 4px 0 0 #000,  8px 4px 0 0 #000,
+      6px 5px 0 0 #000,  7px 5px 0 0 #000,
+      5px 6px 0 0 #000,  6px 6px 0 0 #000,  7px 6px 0 0 #000,  8px 6px 0 0 #000,
+      4px 7px 0 0 #000,  5px 7px 0 0 #000,  8px 7px 0 0 #000,  9px 7px 0 0 #000,
+      3px 8px 0 0 #000,  4px 8px 0 0 #000,  9px 8px 0 0 #000, 10px 8px 0 0 #000;
+  }
+
+  /* Confirmation dialog overlay */
+  .confirm-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.3);
+    z-index: 10000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .confirm-dialog {
+    width: 320px;
+    min-height: auto;
+    position: relative;
+  }
+
+  .confirm-dialog .window-body {
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .confirm-dialog .confirm-message {
+    font-size: 14px;
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .confirm-dialog .confirm-icon {
+    font-size: 32px;
+    line-height: 1;
+    flex-shrink: 0;
+  }
+
+  .confirm-dialog .confirm-buttons {
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+  }
+
+  /* Dark mode */
+  body.dark-mode {
+    background: #1a1a2e;
+  }
+
+  body.dark-mode .window {
+    background: #2d2d3d;
+    border-color: #4a4a5a #1a1a2a #1a1a2a #4a4a5a;
+  }
+
+  body.dark-mode .window.focused .title-bar {
+    background: linear-gradient(90deg, #1a0040, #3a1a6a);
+  }
+
+  body.dark-mode .window:not(.focused) .title-bar {
+    background: linear-gradient(90deg, #3a3a4a, #555565);
+  }
+
+  body.dark-mode .title-bar-controls button {
+    background: #3d3d4d;
+    border-color: #5a5a6a #2a2a3a #2a2a3a #5a5a6a;
+    box-shadow: inset 1px 1px 0 #555565, inset -1px -1px 0 #1a1a2a;
+  }
+
+  body.dark-mode input[type="text"] {
+    background: #1e1e2e;
+    color: #e0e0e0;
+    border-color: #555 #333 #333 #555;
+  }
+
+  body.dark-mode .output-panel {
+    background: #1e1e2e;
+    border-color: #555 #333 #333 #555;
+  }
+
+  body.dark-mode .status-bar {
+    background: #2d2d3d;
+    color: #e0e0e0;
+    border-color: #555 #333 #333 #555;
+  }
+
+  body.dark-mode .status-bar.error {
+    color: #ff6666;
+  }
+
+  body.dark-mode .xp-button {
+    background: #3d3d4d;
+    color: #e0e0e0;
+    border-color: #5a5a6a #2a2a3a #2a2a3a #5a5a6a;
+  }
+
+  body.dark-mode .popout-btn {
+    background: #2a0060;
+    color: #ffffff;
+  }
+
+  body.dark-mode .dropdown-trigger {
+    background: #1e1e2e;
+    color: #e0e0e0;
+    border-color: #555 #333 #333 #555;
+  }
+
+  body.dark-mode .dropdown-arrow {
+    background: #3d3d4d;
+    border-color: #5a5a6a #2a2a3a #2a2a3a #5a5a6a;
+  }
+
+  body.dark-mode .type-popup,
+  body.dark-mode .settings-popup {
+    background: #2d2d3d;
+    border-color: #4a4a5a #1a1a2a #1a1a2a #4a4a5a;
+  }
+
+  body.dark-mode .popup-title-bar {
+    background: linear-gradient(90deg, #1a0040, #3a1a6a);
+  }
+
+  body.dark-mode .popup-list {
+    background: #1e1e2e;
+    border-color: #555 #333 #333 #555;
+  }
+
+  body.dark-mode .popup-section-header {
+    background: #3d3d4d;
+    color: #e0e0e0;
+    border-bottom-color: #555;
+  }
+
+  body.dark-mode .popup-item {
+    color: #e0e0e0;
+  }
+
+  body.dark-mode .popup-item:hover,
+  body.dark-mode .popup-item.hovered {
+    background: #3a1a6a;
+  }
+
+  body.dark-mode .popup-description {
+    background: #3d3d4d;
+    color: #e0e0e0;
+    border-color: #555 #333 #333 #555;
+  }
+
+  body.dark-mode .settings-popup label,
+  body.dark-mode .field-row label,
+  body.dark-mode .radio-group label {
+    color: #e0e0e0;
+  }
+
+  body.dark-mode .settings-popup hr {
+    border-top-color: #555;
+    border-bottom-color: #3d3d4d;
+  }
+
+  body.dark-mode .placeholder {
+    color: #666;
+  }
+
+  body.dark-mode .confirm-overlay {
+    background: rgba(0, 0, 0, 0.5);
+  }
+
+  body.dark-mode .confirm-message {
+    color: #e0e0e0;
+  }
+
+  body.dark-mode .popup-close-btn {
+    background: #3d3d4d;
+    border-color: #5a5a6a #2a2a3a #2a2a3a #5a5a6a;
+    box-shadow: inset 1px 1px 0 #555565, inset -1px -1px 0 #1a1a2a;
+  }
+
+  body.dark-mode .popup-title-icon {
+    background: #3d3d4d;
+    border-color: #555;
+  }
+
+  /* Dock preview overlay */
+  #dock-preview {
+    position: fixed;
+    background: rgba(0, 0, 128, 0.15);
+    border: 2px solid rgba(0, 0, 128, 0.4);
+    z-index: 9999;
+    pointer-events: none;
+    transition: left 0.1s, top 0.1s, width 0.1s, height 0.1s, opacity 0.1s;
+    opacity: 0;
+  }
+</style>
+</head>
+<body>
+
+<canvas id="dot-canvas"></canvas>
+
+<div class="window" id="app-window">
+  <!-- Resize handles -->
+  <div class="resize-handle resize-n" data-dir="n"></div>
+  <div class="resize-handle resize-s" data-dir="s"></div>
+  <div class="resize-handle resize-e" data-dir="e"></div>
+  <div class="resize-handle resize-w" data-dir="w"></div>
+  <div class="resize-handle resize-nw" data-dir="nw"></div>
+  <div class="resize-handle resize-ne" data-dir="ne"></div>
+  <div class="resize-handle resize-sw" data-dir="sw"></div>
+  <div class="resize-handle resize-se" data-dir="se"></div>
+
+  <div class="title-bar" id="title-bar">
+    <span class="title-bar-text">🔱 Barcode Generator</span>
+    <div class="title-bar-controls">
+      <button class="btn-minimize" title="Minimize"></button>
+      <button class="btn-maximize" title="Maximize"></button>
+      <button class="btn-close" title="Close"></button>
+    </div>
+  </div>
+  <div class="window-body">
+    <div class="field-row">
+      <label for="text-input">Text:</label>
+      <input type="text" id="text-input" value="Hello World" autofocus>
+    </div>
+    <div class="field-row">
+      <label>Type:</label>
+      <div class="custom-dropdown" id="type-dropdown">
+        <div class="dropdown-trigger" id="dropdown-trigger">
+          <span id="dropdown-text">Code 128</span>
+          <div class="dropdown-arrow">&#9660;</div>
+        </div>
+        <div class="type-popup" id="type-popup">
+          <div class="popup-title-bar">
+            <div class="popup-title-icon">&#9632;</div>
+            Select Barcode Type
+          </div>
+          <div class="popup-body">
+            <div class="popup-list" id="popup-list"></div>
+            <div class="popup-description" id="popup-description">Select a barcode type</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="field-row">
+      <label>Format:</label>
+      <div class="radio-group">
+        <label><input type="radio" name="format" value="svg" checked> SVG</label>
+        <label><input type="radio" name="format" value="png"> PNG</label>
+      </div>
+    </div>
+    <div class="output-panel" id="output">
+      <span class="placeholder">Barcode will appear here</span>
+    </div>
+    <div class="button-row">
+      <button class="xp-button popout-btn" id="btn-popout" disabled>&#128470; Pop Out</button>
+      <div style="position: relative;">
+        <button class="xp-button settings-btn" id="btn-settings" title="Settings">&#9881; Settings</button>
+        <div class="settings-popup" id="settings-popup">
+          <div class="popup-title-bar">
+            <div class="popup-title-icon">&#9881;</div>
+            Settings
+            <button class="popup-close-btn" id="settings-popup-close" title="Close"></button>
+          </div>
+          <div class="popup-body">
+            <label><input type="checkbox" id="setting-dark-mode"> Dark mode</label>
+            <hr>
+            <label><input type="checkbox" id="setting-show-value"> Show value under barcode</label>
+            <label><input type="checkbox" id="setting-skip-confirm"> Disable close confirmation</label>
+            <label><input type="checkbox" id="setting-comma-separator"> Use comma as separator</label>
+            <hr>
+            <button class="xp-button" id="btn-close-all">Close All Barcodes</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="status-bar" id="status">Ready</div>
+  </div>
+</div>
+
+<div id="dock-preview"></div>
+
+<script>
+var barcodeTypes = [
+  { category: '1D Barcodes', items: [
+    { bcid: 'code128', label: 'Code 128', desc: 'General-purpose barcode supporting all 128 ASCII characters', sample: 'Abc-12' },
+    { bcid: 'code39', label: 'Code 39', desc: 'Alphanumeric barcode used in automotive and defense industries', sample: 'ABC-12' },
+    { bcid: 'ean13', label: 'EAN-13', desc: '13-digit retail product barcode used worldwide', sample: '590123412345' },
+    { bcid: 'upca', label: 'UPC-A', desc: '12-digit retail product barcode standard in North America', sample: '01234567890' },
+    { bcid: 'itf14', label: 'ITF-14', desc: '14-digit barcode for shipping containers and logistics', sample: '0012345678901' }
+  ]},
+  { category: '2D Barcodes', items: [
+    { bcid: 'qrcode', label: 'QR Code', desc: '2D code for text, URLs, and more. Widely used and scannable by phones', sample: 'Hello' },
+    { bcid: 'azteccode', label: 'Aztec', desc: 'Compact 2D code used on tickets and boarding passes', sample: 'Hello' },
+    { bcid: 'datamatrix', label: 'Data Matrix', desc: 'Small 2D code common in electronics and manufacturing', sample: 'Hello' },
+    { bcid: 'pdf417', label: 'PDF417', desc: 'Stacked 2D barcode used on IDs and shipping labels', sample: 'Hello' }
+  ]}
+];
+
+var selectedType = barcodeTypes[0].items[0]; // Code 128-B
+var debounceTimer = null;
+var popupOpen = false;
+var previewCache = {};
+var SETTINGS_KEY = 'barcodeSettings';
+var skipConfirm = false;
+var showValue = false;
+var darkMode = false;
+var commaSeparator = false;
+var settingsPopupOpen = false;
+
+// Load persisted settings
+try {
+  var savedSettings = JSON.parse(localStorage.getItem(SETTINGS_KEY));
+  if (savedSettings) {
+    skipConfirm = !!savedSettings.skipConfirm;
+    showValue = !!savedSettings.showValue;
+    darkMode = !!savedSettings.darkMode;
+    commaSeparator = !!savedSettings.commaSeparator;
+  }
+} catch(e) {}
+
+// Apply dark mode on load
+if (darkMode) document.body.classList.add('dark-mode');
+
+function saveSettings() {
+  localStorage.setItem(SETTINGS_KEY, JSON.stringify({
+    skipConfirm: skipConfirm,
+    showValue: showValue,
+    darkMode: darkMode,
+    commaSeparator: commaSeparator
+  }));
+}
+
+// Generate a small barcode preview as a data URL
+function generatePreview(item) {
+  if (previewCache[item.label]) return previewCache[item.label];
+  try {
+    var canvas = document.createElement('canvas');
+    var is2D = ['qrcode', 'azteccode', 'datamatrix', 'pdf417'].indexOf(item.bcid) !== -1;
+    var opts = {
+      bcid: item.bcid,
+      text: item.sample,
+      scale: is2D ? 2 : 1,
+    };
+    if (!is2D) {
+      opts.height = 6;
+    }
+    if (darkMode) {
+      opts.barcolor = 'FFFFFF';
+      opts.textcolor = 'FFFFFF';
+    }
+    bwipjs.toCanvas(canvas, opts);
+    previewCache[item.label] = canvas.toDataURL('image/png');
+    return previewCache[item.label];
+  } catch (e) {
+    return null;
+  }
+}
+
+// Pre-generate all previews
+function generateAllPreviews() {
+  barcodeTypes.forEach(function(group) {
+    group.items.forEach(function(item) {
+      generatePreview(item);
+    });
+  });
+}
+
+// Build the popup list
+function buildPopupList() {
+  var list = document.getElementById('popup-list');
+  list.innerHTML = '';
+  barcodeTypes.forEach(function(group) {
+    var header = document.createElement('div');
+    header.className = 'popup-section-header';
+    header.textContent = group.category;
+    list.appendChild(header);
+    group.items.forEach(function(item) {
+      var row = document.createElement('div');
+      row.className = 'popup-item';
+      if (item.label === selectedType.label) row.className += ' selected';
+
+      // Preview image
+      var preview = previewCache[item.label];
+      if (preview) {
+        var img = document.createElement('img');
+        img.className = 'popup-item-preview';
+        img.src = preview;
+        img.alt = '';
+        row.appendChild(img);
+      }
+
+      // Label
+      var span = document.createElement('span');
+      span.textContent = item.label;
+      row.appendChild(span);
+
+      row.addEventListener('mouseenter', function() {
+        document.getElementById('popup-description').textContent = item.desc;
+      });
+      row.addEventListener('mouseleave', function() {
+        document.getElementById('popup-description').textContent = 'Select a barcode type';
+      });
+      row.addEventListener('click', function(e) {
+        e.stopPropagation();
+        selectType(item);
+      });
+      list.appendChild(row);
+    });
+  });
+}
+
+function selectType(item) {
+  selectedType = item;
+  document.getElementById('dropdown-text').textContent = item.label;
+  closePopup();
+  generate();
+}
+
+function togglePopup() {
+  if (popupOpen) {
+    closePopup();
+  } else {
+    openPopup();
+  }
+}
+
+function openPopup() {
+  buildPopupList();
+  document.getElementById('type-popup').classList.add('open');
+  popupOpen = true;
+}
+
+function closePopup() {
+  document.getElementById('type-popup').classList.remove('open');
+  popupOpen = false;
+}
+
+// Dropdown trigger click
+document.getElementById('dropdown-trigger').addEventListener('click', function(e) {
+  e.stopPropagation();
+  togglePopup();
+});
+
+// Close popups on outside click
+document.addEventListener('click', function(e) {
+  if (popupOpen && !document.getElementById('type-popup').contains(e.target)) {
+    closePopup();
+  }
+  if (settingsPopupOpen && !document.getElementById('settings-popup').contains(e.target) && e.target.id !== 'btn-settings') {
+    document.getElementById('settings-popup').classList.remove('open');
+    settingsPopupOpen = false;
+  }
+});
+
+function getFormat() {
+  return document.querySelector('input[name="format"]:checked').value;
+}
+
+function setStatus(msg, isError) {
+  var el = document.getElementById('status');
+  el.textContent = msg;
+  el.className = 'status-bar' + (isError ? ' error' : '');
+  updatePopOutButton();
+}
+
+function updatePopOutButton() {
+  var btn = document.getElementById('btn-popout');
+  var output = document.getElementById('output');
+  btn.disabled = !output.querySelector('img');
+}
+
+function generate() {
+  var rawText = document.getElementById('text-input').value;
+  var bcType = selectedType.bcid;
+  var format = getFormat();
+  var output = document.getElementById('output');
+
+  if (!rawText.trim()) {
+    output.innerHTML = '<span class="placeholder">Enter text to generate a barcode</span>';
+    output.classList.remove('multi-barcode');
+    setStatus('Ready');
+    return;
+  }
+
+  var segments;
+  if (commaSeparator) {
+    segments = rawText.split(',').map(function(s) { return s.replace(/\s+/g, ' ').trim(); }).filter(function(s) { return s.length > 0; });
+  } else {
+    segments = [rawText];
+  }
+
+  if (segments.length === 0) {
+    output.innerHTML = '<span class="placeholder">Enter text to generate a barcode</span>';
+    output.classList.remove('multi-barcode');
+    setStatus('Ready');
+    return;
+  }
+
+  setStatus('Generating...');
+  output.innerHTML = '';
+  output.classList.toggle('multi-barcode', segments.length > 1);
+
+  var errors = [];
+  for (var i = 0; i < segments.length; i++) {
+    try {
+      var img = generateBarcodeImg(bcType, segments[i], format);
+      output.appendChild(img);
+    } catch (e) {
+      errors.push(segments[i] + ': ' + e.message);
+    }
+  }
+
+  if (errors.length > 0) {
+    setStatus('Error: ' + errors.join('; '), true);
+  } else {
+    var formatDisplay = format.toUpperCase();
+    if (segments.length === 1) {
+      setStatus(formatDisplay + ' barcode generated successfully');
+    } else {
+      setStatus(segments.length + ' ' + formatDisplay + ' barcodes generated successfully');
+    }
+  }
+}
+
+function generateSVG(opts, output) {
+  try {
+    var svg = bwipjs.toSVG(opts);
+    var blob = new Blob([svg], { type: 'image/svg+xml' });
+    var url = URL.createObjectURL(blob);
+    var img = document.createElement('img');
+    img.onload = function() {
+      output.innerHTML = '';
+      output.appendChild(img);
+      setStatus('SVG barcode generated successfully');
+    };
+    img.onerror = function() {
+      URL.revokeObjectURL(url);
+      output.innerHTML = '<span class="placeholder">Failed to render SVG</span>';
+      setStatus('Error: Failed to render SVG', true);
+    };
+    img.src = url;
+    img.alt = 'Generated barcode';
+  } catch (e) {
+    output.innerHTML = '<span class="placeholder">Generation failed</span>';
+    setStatus('Error: ' + e.message, true);
+  }
+}
+
+function generate2DWithText(opts, text, output) {
+  try {
+    var canvas = document.createElement('canvas');
+    bwipjs.toCanvas(canvas, opts);
+    var fontSize = 14;
+    var pad = 10;
+    var measure = document.createElement('canvas').getContext('2d');
+    measure.font = fontSize + 'px monospace';
+    var textW = measure.measureText(text).width + 8;
+    var outW = Math.max(canvas.width, textW);
+    var out = document.createElement('canvas');
+    out.width = outW;
+    out.height = canvas.height + fontSize + pad;
+    var ctx = out.getContext('2d');
+    if (!darkMode) {
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, out.width, out.height);
+    }
+    ctx.drawImage(canvas, (outW - canvas.width) / 2, 0);
+    ctx.fillStyle = darkMode ? '#ffffff' : '#000000';
+    ctx.font = fontSize + 'px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText(text, out.width / 2, canvas.height + fontSize + 1);
+    var img = document.createElement('img');
+    img.onload = function() {
+      output.innerHTML = '';
+      output.appendChild(img);
+      setStatus('Barcode generated successfully');
+    };
+    img.src = out.toDataURL('image/png');
+    img.alt = 'Generated barcode';
+  } catch (e) {
+    output.innerHTML = '<span class="placeholder">Generation failed</span>';
+    setStatus('Error: ' + e.message, true);
+  }
+}
+
+function build2DTextSVG(opts, text) {
+  var svg = bwipjs.toSVG(opts);
+  var vbMatch = svg.match(/viewBox="([^"]+)"/);
+  if (!vbMatch) throw new Error('SVG missing viewBox');
+  var vb = vbMatch[1].split(/[\s,]+/).map(Number);
+  var vbW = vb[2], vbH = vb[3];
+
+  var textSize = Math.max(8, Math.round(vbW * 0.08));
+  var textPad = textSize * 0.7;
+  var newVbH = vbH + textSize + textPad;
+
+  svg = svg.replace(/viewBox="[^"]*"/, 'viewBox="' + vb[0] + ' ' + vb[1] + ' ' + vbW + ' ' + newVbH + '"');
+
+  var hMatch = svg.match(/height="([^"]+)"/);
+  if (hMatch) {
+    var oldH = parseFloat(hMatch[1]);
+    var unit = hMatch[1].replace(/[\d.]+/, '') || '';
+    svg = svg.replace(/height="[^"]*"/, 'height="' + (oldH * (newVbH / vbH)) + unit + '"');
+  }
+
+  var safeText = text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  var textFill = darkMode ? '#fff' : '#000';
+  var textEl = '<text x="' + (vb[0] + vbW / 2) + '" y="' + (vb[1] + vbH + textSize) + '" ' +
+    'text-anchor="middle" font-family="monospace" font-size="' + textSize + '" fill="' + textFill + '">' +
+    safeText + '</text>';
+  return svg.replace('</svg>', textEl + '</svg>');
+}
+
+function generatePNG(opts, output) {
+  try {
+    var canvas = document.createElement('canvas');
+    bwipjs.toCanvas(canvas, opts);
+    var dataURL = canvas.toDataURL('image/png');
+    var img = document.createElement('img');
+    img.onload = function() {
+      output.innerHTML = '';
+      output.appendChild(img);
+      setStatus('PNG barcode generated successfully');
+    };
+    img.src = dataURL;
+    img.alt = 'Generated barcode';
+  } catch (e) {
+    output.innerHTML = '<span class="placeholder">Generation failed</span>';
+    setStatus('Error: ' + e.message, true);
+  }
+}
+
+// Auto-generate on text input with 300ms debounce
+document.getElementById('text-input').addEventListener('input', function() {
+  clearTimeout(debounceTimer);
+  debounceTimer = setTimeout(generate, 300);
+});
+
+// Pop out barcode on Enter key
+document.getElementById('text-input').addEventListener('keydown', function(e) {
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    // Flush any pending debounce so the barcode is up to date
+    clearTimeout(debounceTimer);
+    generate();
+    // Only pop out if there's a valid barcode displayed
+    if (document.getElementById('output').querySelector('img')) {
+      popOutBarcode();
+    }
+  }
+});
+
+// Auto-generate on format change
+document.querySelectorAll('input[name="format"]').forEach(function(radio) {
+  radio.addEventListener('change', generate);
+});
+
+// Pop Out button click
+document.getElementById('btn-popout').addEventListener('click', popOutBarcode);
+
+// Settings popup toggle
+document.getElementById('btn-settings').addEventListener('click', function(e) {
+  e.stopPropagation();
+  var popup = document.getElementById('settings-popup');
+  if (settingsPopupOpen) {
+    popup.classList.remove('open');
+    settingsPopupOpen = false;
+  } else {
+    popup.classList.add('open');
+    settingsPopupOpen = true;
+  }
+});
+
+document.getElementById('settings-popup-close').addEventListener('click', function(e) {
+  e.stopPropagation();
+  document.getElementById('settings-popup').classList.remove('open');
+  settingsPopupOpen = false;
+});
+
+// Settings: disable confirm checkbox
+var settingCheckbox = document.getElementById('setting-skip-confirm');
+settingCheckbox.checked = skipConfirm;
+settingCheckbox.addEventListener('change', function() {
+  skipConfirm = this.checked;
+  saveSettings();
+});
+
+// Settings: show value checkbox
+var showValueCheckbox = document.getElementById('setting-show-value');
+showValueCheckbox.checked = showValue;
+showValueCheckbox.addEventListener('change', function() {
+  showValue = this.checked;
+  saveSettings();
+  reRenderAllBarcodes();
+});
+
+// Settings: dark mode checkbox
+var darkModeCheckbox = document.getElementById('setting-dark-mode');
+darkModeCheckbox.checked = darkMode;
+darkModeCheckbox.addEventListener('change', function() {
+  darkMode = this.checked;
+  document.body.classList.toggle('dark-mode', darkMode);
+  previewCache = {};
+  generateAllPreviews();
+  saveSettings();
+  reRenderAllBarcodes();
+});
+
+// Settings: comma separator checkbox
+var commaSepCheckbox = document.getElementById('setting-comma-separator');
+commaSepCheckbox.checked = commaSeparator;
+commaSepCheckbox.addEventListener('change', function() {
+  commaSeparator = this.checked;
+  saveSettings();
+  generate();
+});
+
+function reRenderAllBarcodes() {
+  document.querySelectorAll('.popout-window').forEach(function(win) {
+    var data = win.getAttribute('data-popout');
+    if (!data) return;
+    var params = JSON.parse(data);
+    var panel = win.querySelector('.output-panel');
+    try {
+      var img = generateBarcodeImg(params.bcid, params.text, params.format);
+      panel.innerHTML = '';
+      panel.appendChild(img);
+    } catch(e) {}
+  });
+  generate();
+}
+
+// Settings: close all barcodes
+document.getElementById('btn-close-all').addEventListener('click', function() {
+  var popouts = document.querySelectorAll('.popout-window');
+  if (!popouts.length) return;
+
+  if (skipConfirm) {
+    popouts.forEach(function(win) { document.body.removeChild(win); });
+    savePopouts();
+    return;
+  }
+
+  // Show a single confirm dialog
+  var overlay = document.createElement('div');
+  overlay.className = 'confirm-overlay';
+  var dialog = document.createElement('div');
+  dialog.className = 'window confirm-dialog focused';
+  dialog.innerHTML =
+    '<div class="title-bar">' +
+      '<span class="title-bar-text">Confirm Close All</span>' +
+    '</div>' +
+    '<div class="window-body">' +
+      '<div class="confirm-message">' +
+        '<span class="confirm-icon">&#9888;</span>' +
+        '<span>Close all ' + popouts.length + ' open barcode' + (popouts.length === 1 ? '' : 's') + '?</span>' +
+      '</div>' +
+      '<div class="confirm-buttons">' +
+        '<button class="xp-button btn-ok">OK</button>' +
+        '<button class="xp-button btn-cancel">Cancel</button>' +
+      '</div>' +
+    '</div>';
+  overlay.appendChild(dialog);
+  document.body.appendChild(overlay);
+  dialog.querySelector('.btn-cancel').focus();
+
+  dialog.querySelector('.btn-ok').addEventListener('click', function() {
+    document.querySelectorAll('.popout-window').forEach(function(win) {
+      document.body.removeChild(win);
+    });
+    savePopouts();
+    document.body.removeChild(overlay);
+  });
+  dialog.querySelector('.btn-cancel').addEventListener('click', function() {
+    document.body.removeChild(overlay);
+  });
+  overlay.addEventListener('click', function(e) {
+    if (e.target === overlay) document.body.removeChild(overlay);
+  });
+});
+
+// Pre-generate previews and generate initial barcode on load
+generateAllPreviews();
+generate();
+
+
+// ── Pop Out functions ──
+var popoutCounter = 0;
+var POPOUT_STORAGE_KEY = 'barcodePopouts';
+
+function generateBarcodeImg(bcid, text, format) {
+  var is2D = ['qrcode', 'azteccode', 'datamatrix', 'pdf417'].indexOf(bcid) !== -1;
+  var opts = { bcid: bcid, text: text, scale: is2D ? 4 : 3 };
+  if (showValue) {
+    opts.includetext = true;
+    opts.textxalign = 'center';
+  }
+  if (is2D) {
+    delete opts.includetext;
+    delete opts.textxalign;
+  }
+  if (darkMode) {
+    opts.barcolor = 'FFFFFF';
+    opts.textcolor = 'FFFFFF';
+  }
+  var img = document.createElement('img');
+  img.alt = 'Generated barcode';
+
+  // For 2D + showValue, render with text below
+  if (is2D && showValue) {
+    if (format === 'svg') {
+      var svgStr = build2DTextSVG(opts, text);
+      var blob = new Blob([svgStr], { type: 'image/svg+xml' });
+      img.src = URL.createObjectURL(blob);
+    } else {
+      var canvas = document.createElement('canvas');
+      bwipjs.toCanvas(canvas, opts);
+      var fontSize = 14;
+      var pad = 10;
+      var measure = document.createElement('canvas').getContext('2d');
+      measure.font = fontSize + 'px monospace';
+      var textW = measure.measureText(text).width + 8;
+      var outW = Math.max(canvas.width, textW);
+      var out = document.createElement('canvas');
+      out.width = outW;
+      out.height = canvas.height + fontSize + pad;
+      var ctx = out.getContext('2d');
+      ctx.fillStyle = darkMode ? '#000000' : '#ffffff';
+      ctx.fillRect(0, 0, out.width, out.height);
+      ctx.drawImage(canvas, (outW - canvas.width) / 2, 0);
+      ctx.fillStyle = darkMode ? '#ffffff' : '#000000';
+      ctx.font = fontSize + 'px monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText(text, out.width / 2, canvas.height + fontSize + 1);
+      img.src = out.toDataURL('image/png');
+    }
+  } else if (format === 'svg') {
+    var svg = bwipjs.toSVG(opts);
+    var blob = new Blob([svg], { type: 'image/svg+xml' });
+    img.src = URL.createObjectURL(blob);
+  } else {
+    var canvas = document.createElement('canvas');
+    bwipjs.toCanvas(canvas, opts);
+    img.src = canvas.toDataURL('image/png');
+  }
+  return img;
+}
+
+function createPopoutWindow(params) {
+  popoutCounter++;
+  var formatDisplay = params.format.toUpperCase();
+
+  var win = document.createElement('div');
+  win.className = 'window popout-window focused';
+  win.setAttribute('data-popout', JSON.stringify(params));
+
+  // Calculate cascading position relative to main window
+  var mainWin = document.getElementById('app-window');
+  var mainLeft = parseInt(mainWin.style.left) || 0;
+  var mainTop = parseInt(mainWin.style.top) || 0;
+  var posLeft = mainLeft + mainWin.offsetWidth + 20 + ((popoutCounter - 1) * 30);
+  var posTop = mainTop + ((popoutCounter - 1) * 30);
+
+  if (posLeft > window.innerWidth - 200) {
+    posLeft = 40 + ((popoutCounter - 1) * 30) % (window.innerWidth - 300);
+  }
+  posLeft = Math.max(0, Math.min(posLeft, window.innerWidth - 200));
+  posTop = Math.max(0, Math.min(posTop, window.innerHeight - 150));
+
+  win.style.left = posLeft + 'px';
+  win.style.top = posTop + 'px';
+  win.style.width = '360px';
+
+  win.innerHTML =
+    '<div class="resize-handle resize-n" data-dir="n"></div>' +
+    '<div class="resize-handle resize-s" data-dir="s"></div>' +
+    '<div class="resize-handle resize-e" data-dir="e"></div>' +
+    '<div class="resize-handle resize-w" data-dir="w"></div>' +
+    '<div class="resize-handle resize-nw" data-dir="nw"></div>' +
+    '<div class="resize-handle resize-ne" data-dir="ne"></div>' +
+    '<div class="resize-handle resize-sw" data-dir="sw"></div>' +
+    '<div class="resize-handle resize-se" data-dir="se"></div>' +
+    '<div class="title-bar">' +
+      '<span class="title-bar-text"></span>' +
+      '<div class="title-bar-controls">' +
+        '<button class="btn-minimize" title="Minimize"></button>' +
+        '<button class="btn-maximize" title="Maximize"></button>' +
+        '<button class="btn-close" title="Close"></button>' +
+      '</div>' +
+    '</div>' +
+    '<div class="window-body">' +
+      '<div class="output-panel"></div>' +
+      '<div class="status-bar">Format: ' + formatDisplay + ' | Type: ' + params.typeLabel + '</div>' +
+    '</div>';
+
+  var titleText = params.text.length > 20 ? params.text.substring(0, 20) + '...' : params.text;
+  win.querySelector('.title-bar-text').textContent = '\uD83D\uDD31 \u201C' + titleText + '\u201D';
+
+
+  try {
+    var img = generateBarcodeImg(params.bcid, params.text, params.format);
+    win.querySelector('.output-panel').appendChild(img);
+  } catch (e) {
+    win.querySelector('.output-panel').innerHTML = '<span class="placeholder">Failed to restore barcode</span>';
+  }
+
+  document.body.appendChild(win);
+
+  setupWindowManagement(win, {
+    onClose: function() {
+      showConfirmClose(win);
+    }
+  });
+
+  bringToFront(win);
+  return win;
+}
+
+function popOutBarcode() {
+  var output = document.getElementById('output');
+  if (!output.querySelector('img')) return;
+
+  var rawText = document.getElementById('text-input').value;
+  var segments;
+  if (commaSeparator) {
+    segments = rawText.split(',').map(function(s) { return s.replace(/\s+/g, ' ').trim(); }).filter(function(s) { return s.length > 0; });
+  } else {
+    segments = [rawText];
+  }
+
+  for (var i = 0; i < segments.length; i++) {
+    createPopoutWindow({
+      text: segments[i],
+      bcid: selectedType.bcid,
+      typeLabel: selectedType.label,
+      format: getFormat()
+    });
+  }
+  savePopouts();
+}
+
+function showConfirmClose(targetWin) {
+  if (skipConfirm) {
+    document.body.removeChild(targetWin);
+    savePopouts();
+    return;
+  }
+  // Prevent multiple confirm dialogs for the same window
+  if (targetWin._confirmOpen) return;
+  targetWin._confirmOpen = true;
+
+  var overlay = document.createElement('div');
+  overlay.className = 'confirm-overlay';
+
+  var dialog = document.createElement('div');
+  dialog.className = 'window confirm-dialog focused';
+  dialog.innerHTML =
+    '<div class="title-bar">' +
+      '<span class="title-bar-text">Confirm Close</span>' +
+    '</div>' +
+    '<div class="window-body">' +
+      '<div class="confirm-message">' +
+        '<span class="confirm-icon">&#9888;</span>' +
+        '<span>Are you sure you want to close this barcode?</span>' +
+      '</div>' +
+      '<div class="confirm-buttons">' +
+        '<button class="xp-button btn-ok">OK</button>' +
+        '<button class="xp-button btn-cancel">Cancel</button>' +
+      '</div>' +
+    '</div>';
+
+  overlay.appendChild(dialog);
+  document.body.appendChild(overlay);
+
+  // Focus the Cancel button so Enter doesn't re-trigger the close button
+  dialog.querySelector('.btn-cancel').focus();
+
+  dialog.querySelector('.btn-ok').addEventListener('click', function() {
+    document.body.removeChild(overlay);
+    document.body.removeChild(targetWin);
+    savePopouts();
+  });
+
+  dialog.querySelector('.btn-cancel').addEventListener('click', function() {
+    targetWin._confirmOpen = false;
+    document.body.removeChild(overlay);
+  });
+
+  overlay.addEventListener('click', function(e) {
+    if (e.target === overlay) {
+      targetWin._confirmOpen = false;
+      document.body.removeChild(overlay);
+    }
+  });
+}
+
+function savePopouts() {
+  try {
+    var popouts = [];
+    document.querySelectorAll('.popout-window').forEach(function(win) {
+      var data = win.getAttribute('data-popout');
+      if (!data) return;
+      var entry = JSON.parse(data);
+      entry.x = parseInt(win.style.left) || 0;
+      entry.y = parseInt(win.style.top) || 0;
+      entry.w = win.offsetWidth;
+      entry.h = win.offsetHeight;
+      entry.z = parseInt(win.style.zIndex) || 1;
+      popouts.push(entry);
+    });
+    localStorage.setItem(POPOUT_STORAGE_KEY, JSON.stringify(popouts));
+  } catch (e) {}
+}
+
+function restorePopouts() {
+  try {
+    var data = localStorage.getItem(POPOUT_STORAGE_KEY);
+    if (!data) return;
+    var popouts = JSON.parse(data);
+    if (!popouts.length) return;
+
+    popouts.forEach(function(params) {
+      var win = createPopoutWindow(params);
+      if (params.x != null) win.style.left = params.x + 'px';
+      if (params.y != null) win.style.top = params.y + 'px';
+      if (params.w != null) win.style.width = params.w + 'px';
+      if (params.h != null) win.style.height = params.h + 'px';
+      if (params.z != null) win.style.zIndex = params.z;
+    });
+
+    // Update topZIndex to be above all restored windows
+    var allWindows = document.querySelectorAll('.window');
+    var maxZ = topZIndex;
+    allWindows.forEach(function(w) {
+      var z = parseInt(w.style.zIndex) || 1;
+      if (z > maxZ) maxZ = z;
+    });
+    topZIndex = maxZ;
+
+    // Set focused class on the topmost window
+    var topWin = null;
+    allWindows.forEach(function(w) {
+      w.classList.remove('focused');
+      var z = parseInt(w.style.zIndex) || 1;
+      if (!topWin || z > (parseInt(topWin.style.zIndex) || 1)) topWin = w;
+    });
+    if (topWin) topWin.classList.add('focused');
+  } catch (e) {}
+}
+
+// ── Window management (shared) ──
+var topZIndex = 100;
+var activeDrag = null;
+var activeResize = null;
+
+// ── Snap & Dock constants ──
+var SNAP_THRESHOLD = 10;
+var SNAP_BREAK_FREE = 12;
+var DOCK_EDGE_SIZE = 8;
+var DOCK_CORNER_SIZE = 50;
+
+var dockPreview = null; // set after DOM ready
+
+function detectDockZone(mouseX, mouseY) {
+  var vw = window.innerWidth;
+  var vh = window.innerHeight;
+  var atLeft = mouseX <= DOCK_EDGE_SIZE;
+  var atRight = mouseX >= vw - DOCK_EDGE_SIZE;
+  var atTop = mouseY <= DOCK_EDGE_SIZE;
+  var atBottom = mouseY >= vh - DOCK_EDGE_SIZE;
+
+  // Corners first
+  if (atLeft && atTop) return { left: 0, top: 0, width: vw / 2, height: vh / 2 };
+  if (atRight && atTop) return { left: vw / 2, top: 0, width: vw / 2, height: vh / 2 };
+  if (atLeft && atBottom) return { left: 0, top: vh / 2, width: vw / 2, height: vh / 2 };
+  if (atRight && atBottom) return { left: vw / 2, top: vh / 2, width: vw / 2, height: vh / 2 };
+
+  // Also check corner hotspots for the top-left/top-right/bottom-left/bottom-right
+  if (atLeft && mouseY < DOCK_CORNER_SIZE) return { left: 0, top: 0, width: vw / 2, height: vh / 2 };
+  if (atLeft && mouseY > vh - DOCK_CORNER_SIZE) return { left: 0, top: vh / 2, width: vw / 2, height: vh / 2 };
+  if (atRight && mouseY < DOCK_CORNER_SIZE) return { left: vw / 2, top: 0, width: vw / 2, height: vh / 2 };
+  if (atRight && mouseY > vh - DOCK_CORNER_SIZE) return { left: vw / 2, top: vh / 2, width: vw / 2, height: vh / 2 };
+  if (atTop && mouseX < DOCK_CORNER_SIZE) return { left: 0, top: 0, width: vw / 2, height: vh / 2 };
+  if (atTop && mouseX > vw - DOCK_CORNER_SIZE) return { left: vw / 2, top: 0, width: vw / 2, height: vh / 2 };
+  if (atBottom && mouseX < DOCK_CORNER_SIZE) return { left: 0, top: vh / 2, width: vw / 2, height: vh / 2 };
+  if (atBottom && mouseX > vw - DOCK_CORNER_SIZE) return { left: vw / 2, top: vh / 2, width: vw / 2, height: vh / 2 };
+
+  // Edges
+  if (atLeft) return { left: 0, top: 0, width: vw / 2, height: vh };
+  if (atRight) return { left: vw / 2, top: 0, width: vw / 2, height: vh };
+  if (atTop) return { left: 0, top: 0, width: vw, height: vh };
+  if (atBottom) return { left: 0, top: vh / 2, width: vw, height: vh / 2 };
+
+  return null;
+}
+
+function showDockPreview(zone) {
+  if (!dockPreview) return;
+  dockPreview.style.left = zone.left + 'px';
+  dockPreview.style.top = zone.top + 'px';
+  dockPreview.style.width = zone.width + 'px';
+  dockPreview.style.height = zone.height + 'px';
+  dockPreview.style.opacity = '1';
+}
+
+function hideDockPreview() {
+  if (!dockPreview) return;
+  dockPreview.style.opacity = '0';
+}
+
+function isDockPreviewVisible() {
+  return dockPreview && dockPreview.style.opacity === '1';
+}
+
+function getSnapTargets(excludeWin) {
+  var targets = [];
+  var windows = document.querySelectorAll('.window');
+  for (var i = 0; i < windows.length; i++) {
+    var w = windows[i];
+    if (w === excludeWin) continue;
+    if (w.classList.contains('minimized')) continue;
+    if (w.style.display === 'none') continue;
+    // Skip confirm dialogs
+    if (w.classList.contains('confirm-dialog')) continue;
+    var left = parseInt(w.style.left) || 0;
+    var top = parseInt(w.style.top) || 0;
+    targets.push({
+      left: left,
+      top: top,
+      right: left + w.offsetWidth,
+      bottom: top + w.offsetHeight
+    });
+  }
+  return targets;
+}
+
+function computeWindowSnap(rawLeft, rawTop, width, height, targets) {
+  var dx = 0, dy = 0;
+  var bestDx = SNAP_THRESHOLD + 1;
+  var bestDy = SNAP_THRESHOLD + 1;
+  var myRight = rawLeft + width;
+  var myBottom = rawTop + height;
+
+  for (var i = 0; i < targets.length; i++) {
+    var t = targets[i];
+    // Horizontal snaps: check if vertically overlapping or nearby (within threshold)
+    var vOverlap = rawTop < t.bottom + SNAP_THRESHOLD && myBottom > t.top - SNAP_THRESHOLD;
+    if (vOverlap) {
+      // My left to target left
+      var d = Math.abs(rawLeft - t.left);
+      if (d < bestDx) { bestDx = d; dx = t.left - rawLeft; }
+      // My left to target right
+      d = Math.abs(rawLeft - t.right);
+      if (d < bestDx) { bestDx = d; dx = t.right - rawLeft; }
+      // My right to target left
+      d = Math.abs(myRight - t.left);
+      if (d < bestDx) { bestDx = d; dx = t.left - myRight; }
+      // My right to target right
+      d = Math.abs(myRight - t.right);
+      if (d < bestDx) { bestDx = d; dx = t.right - myRight; }
+    }
+    // Vertical snaps: check if horizontally overlapping or nearby (within threshold)
+    var hOverlap = rawLeft < t.right + SNAP_THRESHOLD && myRight > t.left - SNAP_THRESHOLD;
+    if (hOverlap) {
+      // My top to target top
+      var d = Math.abs(rawTop - t.top);
+      if (d < bestDy) { bestDy = d; dy = t.top - rawTop; }
+      // My top to target bottom
+      d = Math.abs(rawTop - t.bottom);
+      if (d < bestDy) { bestDy = d; dy = t.bottom - rawTop; }
+      // My bottom to target top
+      d = Math.abs(myBottom - t.top);
+      if (d < bestDy) { bestDy = d; dy = t.top - myBottom; }
+      // My bottom to target bottom
+      d = Math.abs(myBottom - t.bottom);
+      if (d < bestDy) { bestDy = d; dy = t.bottom - myBottom; }
+    }
+  }
+
+  if (bestDx > SNAP_THRESHOLD) dx = 0;
+  if (bestDy > SNAP_THRESHOLD) dy = 0;
+  return { dx: dx, dy: dy };
+}
+
+function computeResizeSnap(newLeft, newTop, newWidth, newHeight, dir, targets) {
+  var adjLeft = newLeft, adjTop = newTop, adjWidth = newWidth, adjHeight = newHeight;
+  var myRight = newLeft + newWidth;
+  var myBottom = newTop + newHeight;
+
+  for (var i = 0; i < targets.length; i++) {
+    var t = targets[i];
+
+    // East edge snapping
+    if (dir.indexOf('e') !== -1) {
+      var vOverlap = newTop < t.bottom + SNAP_THRESHOLD && myBottom > t.top - SNAP_THRESHOLD;
+      if (vOverlap) {
+        if (Math.abs(myRight - t.left) <= SNAP_THRESHOLD) {
+          adjWidth = t.left - newLeft;
+        } else if (Math.abs(myRight - t.right) <= SNAP_THRESHOLD) {
+          adjWidth = t.right - newLeft;
+        }
+      }
+    }
+
+    // West edge snapping
+    if (dir.indexOf('w') !== -1) {
+      var vOverlap = newTop < t.bottom + SNAP_THRESHOLD && myBottom > t.top - SNAP_THRESHOLD;
+      if (vOverlap) {
+        if (Math.abs(newLeft - t.right) <= SNAP_THRESHOLD) {
+          var diff = newLeft - t.right;
+          adjLeft = t.right;
+          adjWidth = newWidth + diff;
+        } else if (Math.abs(newLeft - t.left) <= SNAP_THRESHOLD) {
+          var diff = newLeft - t.left;
+          adjLeft = t.left;
+          adjWidth = newWidth + diff;
+        }
+      }
+    }
+
+    // South edge snapping
+    if (dir.indexOf('s') !== -1) {
+      var hOverlap = newLeft < t.right + SNAP_THRESHOLD && myRight > t.left - SNAP_THRESHOLD;
+      if (hOverlap) {
+        if (Math.abs(myBottom - t.top) <= SNAP_THRESHOLD) {
+          adjHeight = t.top - newTop;
+        } else if (Math.abs(myBottom - t.bottom) <= SNAP_THRESHOLD) {
+          adjHeight = t.bottom - newTop;
+        }
+      }
+    }
+
+    // North edge snapping
+    if (dir.indexOf('n') !== -1) {
+      var hOverlap = newLeft < t.right + SNAP_THRESHOLD && myRight > t.left - SNAP_THRESHOLD;
+      if (hOverlap) {
+        if (Math.abs(newTop - t.bottom) <= SNAP_THRESHOLD) {
+          var diff = newTop - t.bottom;
+          adjTop = t.bottom;
+          adjHeight = newHeight + diff;
+        } else if (Math.abs(newTop - t.top) <= SNAP_THRESHOLD) {
+          var diff = newTop - t.top;
+          adjTop = t.top;
+          adjHeight = newHeight + diff;
+        }
+      }
+    }
+  }
+
+  return { left: adjLeft, top: adjTop, width: adjWidth, height: adjHeight };
+}
+
+function bringToFront(win) {
+  document.querySelectorAll('.window.focused').forEach(function(w) {
+    w.classList.remove('focused');
+  });
+  topZIndex++;
+  win.style.zIndex = topZIndex;
+  win.classList.add('focused');
+}
+
+function setupWindowManagement(win, options) {
+  options = options || {};
+  var titleBar = win.querySelector('.title-bar');
+  var btnMin = win.querySelector('.btn-minimize');
+  var btnMax = win.querySelector('.btn-maximize');
+  var btnClose = win.querySelector('.btn-close');
+
+  var isMaximized = false;
+  var isMinimized = false;
+  var restoreRect = null;
+
+  function saveRect() {
+    restoreRect = {
+      left: parseInt(win.style.left) || 0,
+      top: parseInt(win.style.top) || 0,
+      width: win.offsetWidth,
+      height: win.offsetHeight
+    };
+  }
+
+  // Minimize
+  if (btnMin) {
+    btnMin.addEventListener('click', function(e) {
+      e.stopPropagation();
+      if (isMinimized) {
+        isMinimized = false;
+        win.classList.remove('minimized');
+        if (restoreRect) {
+          win.style.left = restoreRect.left + 'px';
+          win.style.top = restoreRect.top + 'px';
+          win.style.width = restoreRect.width + 'px';
+          win.style.height = restoreRect.height + 'px';
+        }
+      } else {
+        if (!isMaximized) saveRect();
+        isMaximized = false;
+        win.classList.remove('maximized');
+        isMinimized = true;
+        win.style.height = 'auto';
+        win.classList.add('minimized');
+      }
+    });
+  }
+
+  // Maximize
+  if (btnMax) {
+    btnMax.addEventListener('click', function(e) {
+      e.stopPropagation();
+      if (isMaximized) {
+        isMaximized = false;
+        win.classList.remove('maximized');
+        if (restoreRect) {
+          win.style.left = restoreRect.left + 'px';
+          win.style.top = restoreRect.top + 'px';
+          win.style.width = restoreRect.width + 'px';
+          win.style.height = restoreRect.height + 'px';
+        }
+      } else {
+        if (!isMinimized) saveRect();
+        isMinimized = false;
+        win.classList.remove('minimized');
+        isMaximized = true;
+        win.classList.add('maximized');
+      }
+    });
+  }
+
+  // Close
+  if (btnClose) {
+    btnClose.addEventListener('click', function(e) {
+      e.stopPropagation();
+      if (options.onClose) options.onClose();
+    });
+  }
+
+  // Double-click title bar to toggle maximize
+  titleBar.addEventListener('dblclick', function(e) {
+    if (e.target.tagName === 'BUTTON') return;
+    if (btnMax) btnMax.click();
+  });
+
+  // Dragging
+  titleBar.addEventListener('mousedown', function(e) {
+    if (e.target.tagName === 'BUTTON') return;
+    bringToFront(win);
+
+    // Restore from maximized: unmaximize and center under mouse
+    if (isMaximized) {
+      isMaximized = false;
+      win.classList.remove('maximized');
+      var rw = restoreRect ? restoreRect.width : 600;
+      var rh = restoreRect ? restoreRect.height : 400;
+      // Position so the mouse is proportionally placed on the title bar
+      var ratioX = e.clientX / window.innerWidth;
+      var newLeft = e.clientX - rw * ratioX;
+      var newTop = e.clientY - 12;
+      newLeft = Math.max(0, Math.min(newLeft, window.innerWidth - rw));
+      newTop = Math.max(0, newTop);
+      win.style.left = newLeft + 'px';
+      win.style.top = newTop + 'px';
+      win.style.width = rw + 'px';
+      win.style.height = rh + 'px';
+    }
+
+    var curLeft = parseInt(win.style.left) || 0;
+    var curTop = parseInt(win.style.top) || 0;
+
+    // Undock: if window was docked, restore original size and center under mouse
+    if (win._dockedZone && win._preDockRect) {
+      var pre = win._preDockRect;
+      var newWidth = pre.width;
+      var newHeight = pre.height;
+      // Center the restored window under the mouse horizontally
+      curLeft = e.clientX - newWidth / 2;
+      curTop = e.clientY - 12; // just below the cursor at the title bar
+      curLeft = Math.max(0, Math.min(curLeft, window.innerWidth - newWidth));
+      curTop = Math.max(0, curTop);
+      win.style.left = curLeft + 'px';
+      win.style.top = curTop + 'px';
+      win.style.width = newWidth + 'px';
+      win.style.height = newHeight + 'px';
+      win._dockedZone = null;
+      win._preDockRect = null;
+    }
+
+    activeDrag = {
+      win: win,
+      offsetX: e.clientX - curLeft,
+      offsetY: e.clientY - curTop,
+      snapX: null,
+      snapY: null,
+      snapAnchorX: 0,
+      snapAnchorY: 0,
+      rawLeft: curLeft,
+      rawTop: curTop
+    };
+    e.preventDefault();
+  });
+
+  // Resizing
+  var handles = win.querySelectorAll('.resize-handle');
+  for (var i = 0; i < handles.length; i++) {
+    handles[i].addEventListener('mousedown', function(e) {
+      if (isMaximized || isMinimized) return;
+      e.preventDefault();
+      e.stopPropagation();
+      bringToFront(win);
+      activeResize = {
+        win: win,
+        dir: this.getAttribute('data-dir'),
+        startX: e.clientX,
+        startY: e.clientY,
+        startRect: {
+          left: parseInt(win.style.left) || 0,
+          top: parseInt(win.style.top) || 0,
+          width: win.offsetWidth,
+          height: win.offsetHeight
+        },
+        minW: parseInt(window.getComputedStyle(win).minWidth) || 200,
+        minH: parseInt(window.getComputedStyle(win).minHeight) || 120
+      };
+      document.body.style.cursor = window.getComputedStyle(this).cursor;
+    });
+  }
+
+  // Focus on mousedown anywhere in window
+  win.addEventListener('mousedown', function() {
+    bringToFront(win);
+  });
+}
+
+// Shared document-level drag/resize handlers
+document.addEventListener('mousemove', function(e) {
+  if (activeDrag) {
+    var d = activeDrag;
+    var win = d.win;
+    var ww = win.offsetWidth;
+    var wh = win.offsetHeight;
+
+    // Compute raw (unsnapped) position from mouse
+    d.rawLeft = e.clientX - d.offsetX;
+    d.rawTop = e.clientY - d.offsetY;
+
+    // Check dock zone
+    var zone = detectDockZone(e.clientX, e.clientY);
+    if (zone) {
+      showDockPreview(zone);
+      // While dock zone is active, still move the window freely
+      var newLeft = Math.max(0, Math.min(d.rawLeft, window.innerWidth - ww));
+      var newTop = Math.max(0, Math.min(d.rawTop, window.innerHeight - wh));
+      win.style.left = newLeft + 'px';
+      win.style.top = newTop + 'px';
+      // Reset snap state
+      d.snapX = null;
+      d.snapY = null;
+    } else {
+      hideDockPreview();
+
+      // Window-to-window snapping with break-free
+      var targets = getSnapTargets(win);
+      var snap = computeWindowSnap(d.rawLeft, d.rawTop, ww, wh, targets);
+
+      var finalLeft = d.rawLeft;
+      var finalTop = d.rawTop;
+
+      // X-axis snap logic
+      if (snap.dx !== 0) {
+        if (d.snapX === null) {
+          // Engage snap
+          d.snapX = snap.dx;
+          d.snapAnchorX = e.clientX;
+          finalLeft = d.rawLeft + snap.dx;
+        } else {
+          // Already snapped — check break-free
+          if (Math.abs(e.clientX - d.snapAnchorX) > SNAP_BREAK_FREE) {
+            d.snapX = null;
+            // Follow raw position
+          } else {
+            finalLeft = d.rawLeft + d.snapX;
+            // Recalculate snap at current locked position
+            var recheck = computeWindowSnap(finalLeft, d.rawTop, ww, wh, targets);
+            if (recheck.dx !== 0 && Math.abs(recheck.dx) < 2) {
+              finalLeft = finalLeft + recheck.dx;
+              d.snapX = finalLeft - d.rawLeft;
+            }
+          }
+        }
+      } else {
+        // No snap candidate — check if we were snapped and should stay
+        if (d.snapX !== null) {
+          if (Math.abs(e.clientX - d.snapAnchorX) > SNAP_BREAK_FREE) {
+            d.snapX = null;
+          } else {
+            finalLeft = d.rawLeft + d.snapX;
+          }
+        }
+      }
+
+      // Y-axis snap logic
+      if (snap.dy !== 0) {
+        if (d.snapY === null) {
+          d.snapY = snap.dy;
+          d.snapAnchorY = e.clientY;
+          finalTop = d.rawTop + snap.dy;
+        } else {
+          if (Math.abs(e.clientY - d.snapAnchorY) > SNAP_BREAK_FREE) {
+            d.snapY = null;
+          } else {
+            finalTop = d.rawTop + d.snapY;
+            var recheck = computeWindowSnap(d.rawLeft, finalTop, ww, wh, targets);
+            if (recheck.dy !== 0 && Math.abs(recheck.dy) < 2) {
+              finalTop = finalTop + recheck.dy;
+              d.snapY = finalTop - d.rawTop;
+            }
+          }
+        }
+      } else {
+        if (d.snapY !== null) {
+          if (Math.abs(e.clientY - d.snapAnchorY) > SNAP_BREAK_FREE) {
+            d.snapY = null;
+          } else {
+            finalTop = d.rawTop + d.snapY;
+          }
+        }
+      }
+
+      // Clamp to viewport
+      finalLeft = Math.max(0, Math.min(finalLeft, window.innerWidth - ww));
+      finalTop = Math.max(0, Math.min(finalTop, window.innerHeight - wh));
+
+      win.style.left = finalLeft + 'px';
+      win.style.top = finalTop + 'px';
+    }
+  }
+  if (activeResize) {
+    var r = activeResize;
+    var dx = e.clientX - r.startX;
+    var dy = e.clientY - r.startY;
+    var s = r.startRect;
+    var vw = window.innerWidth;
+    var vh = window.innerHeight;
+    var newLeft = s.left;
+    var newTop = s.top;
+    var newWidth = s.width;
+    var newHeight = s.height;
+
+    if (r.dir.indexOf('e') !== -1) {
+      newWidth = Math.max(r.minW, Math.min(s.width + dx, vw - s.left));
+    }
+    if (r.dir.indexOf('w') !== -1) {
+      var maxDx = s.left;
+      var clampedDx = Math.min(dx, maxDx);
+      var w = Math.max(r.minW, s.width - clampedDx);
+      newLeft = s.left + (s.width - w);
+      newWidth = w;
+    }
+    if (r.dir.indexOf('s') !== -1) {
+      newHeight = Math.max(r.minH, Math.min(s.height + dy, vh - s.top));
+    }
+    if (r.dir.indexOf('n') !== -1) {
+      var maxDy = s.top;
+      var clampedDy = Math.min(dy, maxDy);
+      var h = Math.max(r.minH, s.height - clampedDy);
+      newTop = s.top + (s.height - h);
+      newHeight = h;
+    }
+
+    // Resize snapping
+    var snapTargets = getSnapTargets(r.win);
+    var snapped = computeResizeSnap(newLeft, newTop, newWidth, newHeight, r.dir, snapTargets);
+    if (snapped.width >= r.minW) { newLeft = snapped.left; newWidth = snapped.width; }
+    if (snapped.height >= r.minH) { newTop = snapped.top; newHeight = snapped.height; }
+
+    // Clamp to viewport bounds
+    if (newLeft < 0) { newWidth += newLeft; newLeft = 0; }
+    if (newTop < 0) { newHeight += newTop; newTop = 0; }
+    if (newLeft + newWidth > vw) { newWidth = vw - newLeft; }
+    if (newTop + newHeight > vh) { newHeight = vh - newTop; }
+
+    r.win.style.left = newLeft + 'px';
+    r.win.style.top = newTop + 'px';
+    r.win.style.width = newWidth + 'px';
+    r.win.style.height = newHeight + 'px';
+  }
+});
+
+document.addEventListener('mouseup', function() {
+  if (activeDrag) {
+    var win = activeDrag.win;
+    // Apply dock geometry if dock preview is showing
+    if (isDockPreviewVisible()) {
+      // Save pre-dock rect
+      win._preDockRect = {
+        left: activeDrag.rawLeft,
+        top: activeDrag.rawTop,
+        width: win.offsetWidth,
+        height: win.offsetHeight
+      };
+      // Apply dock zone geometry
+      var zone = detectDockZone(
+        parseInt(dockPreview.style.left) + parseInt(dockPreview.style.width) / 2,
+        parseInt(dockPreview.style.top) + parseInt(dockPreview.style.height) / 2
+      );
+      // Use the preview's actual position/size
+      win.style.left = dockPreview.style.left;
+      win.style.top = dockPreview.style.top;
+      win.style.width = dockPreview.style.width;
+      win.style.height = dockPreview.style.height;
+      win._dockedZone = true;
+    }
+    hideDockPreview();
+    if (win.classList.contains('popout-window')) savePopouts();
+    if (win.id === 'app-window') saveMainWindow();
+  }
+  if (activeResize) {
+    if (activeResize.win.classList.contains('popout-window')) savePopouts();
+    if (activeResize.win.id === 'app-window') saveMainWindow();
+  }
+  activeDrag = null;
+  activeResize = null;
+  document.body.style.cursor = '';
+});
+
+// ── Main window persistence ──
+var MAIN_WINDOW_KEY = 'barcodeMainWindow';
+
+function saveMainWindow() {
+  try {
+    var win = document.getElementById('app-window');
+    localStorage.setItem(MAIN_WINDOW_KEY, JSON.stringify({
+      x: parseInt(win.style.left) || 0,
+      y: parseInt(win.style.top) || 0,
+      w: win.offsetWidth,
+      h: win.offsetHeight,
+      z: parseInt(win.style.zIndex) || 1
+    }));
+  } catch (e) {}
+}
+
+// ── Initialize dock preview ref ──
+dockPreview = document.getElementById('dock-preview');
+
+// ── Initialize main window ──
+(function() {
+  var win = document.getElementById('app-window');
+  var restored = false;
+
+  try {
+    var saved = JSON.parse(localStorage.getItem(MAIN_WINDOW_KEY));
+    if (saved && saved.w >= 320 && saved.h >= 200) {
+      win.style.width = saved.w + 'px';
+      win.style.height = saved.h + 'px';
+      win.style.left = Math.max(0, Math.min(saved.x, window.innerWidth - 100)) + 'px';
+      win.style.top = Math.max(0, Math.min(saved.y, window.innerHeight - 50)) + 'px';
+      if (saved.z != null) {
+        win.style.zIndex = saved.z;
+        if (saved.z > topZIndex) topZIndex = saved.z;
+      }
+      restored = true;
+    }
+  } catch (e) {}
+
+  if (!restored) {
+    var vw = window.innerWidth;
+    var vh = window.innerHeight;
+    var w = Math.max(320, Math.min(720, Math.round(vw * 0.5)));
+    var h = Math.max(200, Math.round(vh * 0.7));
+    win.style.width = w + 'px';
+    win.style.height = h + 'px';
+    win.style.left = Math.round(vw * 0.04) + 'px';
+    win.style.top = Math.round((vh - h) / 2) + 'px';
+  }
+
+  setupWindowManagement(win, {
+    onClose: function() {
+      // Minimize and dock to bottom-left
+      var btnMin = win.querySelector('.btn-minimize');
+      if (!win.classList.contains('minimized') && btnMin) {
+        btnMin.click();
+      }
+      win.style.left = '0px';
+      win.style.top = (window.innerHeight - win.offsetHeight) + 'px';
+    }
+  });
+  bringToFront(win);
+})();
+
+// Restore any persisted pop-out windows
+restorePopouts();
+
+// ── Floating particle network ──
+(function() {
+  var canvas = document.getElementById('dot-canvas');
+  var ctx = canvas.getContext('2d');
+  var particles = [];
+  var mouseX = -1000, mouseY = -1000;
+  var mouseRadius = 180;
+  var linkDist = 130;
+  var particleCount;
+
+  function resize() {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+    var area = canvas.width * canvas.height;
+    particleCount = Math.min(200, Math.floor(area / 8000));
+    while (particles.length < particleCount) spawnParticle();
+    while (particles.length > particleCount) particles.pop();
+  }
+
+  function spawnParticle() {
+    var speed = 0.15 + Math.random() * 0.4;
+    var angle = Math.random() * Math.PI * 2;
+    particles.push({
+      x: Math.random() * canvas.width,
+      y: Math.random() * canvas.height,
+      vx: Math.cos(angle) * speed,
+      vy: Math.sin(angle) * speed,
+      r: 1.2 + Math.random() * 1.8,
+      baseAlpha: 0.15 + Math.random() * 0.35,
+      pulse: Math.random() * Math.PI * 2
+    });
+  }
+
+  window.addEventListener('resize', resize);
+  resize();
+
+  document.addEventListener('mousemove', function(e) {
+    mouseX = e.clientX;
+    mouseY = e.clientY;
+  });
+  document.addEventListener('mouseleave', function() {
+    mouseX = -1000;
+    mouseY = -1000;
+  });
+
+  function draw() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    var w = canvas.width, h = canvas.height;
+    var time = Date.now() * 0.001;
+
+    // Update positions
+    for (var i = 0; i < particles.length; i++) {
+      var p = particles[i];
+
+      // Mouse repulsion
+      var dx = p.x - mouseX;
+      var dy = p.y - mouseY;
+      var dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist < mouseRadius && dist > 0) {
+        var force = (1 - dist / mouseRadius) * 1.8;
+        p.vx += (dx / dist) * force * 0.3;
+        p.vy += (dy / dist) * force * 0.3;
+      }
+
+      // Dampen velocity
+      p.vx *= 0.985;
+      p.vy *= 0.985;
+
+      // Drift speed floor so they never fully stop
+      var spd = Math.sqrt(p.vx * p.vx + p.vy * p.vy);
+      if (spd < 0.15) {
+        p.vx += (Math.random() - 0.5) * 0.08;
+        p.vy += (Math.random() - 0.5) * 0.08;
+      }
+
+      p.x += p.vx;
+      p.y += p.vy;
+
+      // Wrap around edges with padding
+      if (p.x < -20) p.x = w + 20;
+      if (p.x > w + 20) p.x = -20;
+      if (p.y < -20) p.y = h + 20;
+      if (p.y > h + 20) p.y = -20;
+    }
+
+    // Draw connection lines
+    for (var i = 0; i < particles.length; i++) {
+      for (var j = i + 1; j < particles.length; j++) {
+        var a = particles[i], b = particles[j];
+        var dx = a.x - b.x;
+        var dy = a.y - b.y;
+        var dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist < linkDist) {
+          var opacity = (1 - dist / linkDist) * 0.25;
+          // Brighten lines near mouse
+          var midX = (a.x + b.x) / 2;
+          var midY = (a.y + b.y) / 2;
+          var mDist = Math.sqrt((midX - mouseX) * (midX - mouseX) + (midY - mouseY) * (midY - mouseY));
+          if (mDist < mouseRadius) {
+            opacity += (1 - mDist / mouseRadius) * 0.2;
+          }
+          ctx.beginPath();
+          ctx.moveTo(a.x, a.y);
+          ctx.lineTo(b.x, b.y);
+          ctx.strokeStyle = 'rgba(110, 145, 220, ' + opacity + ')';
+          ctx.lineWidth = 0.6;
+          ctx.stroke();
+        }
+      }
+    }
+
+    // Draw particles
+    for (var i = 0; i < particles.length; i++) {
+      var p = particles[i];
+      var pulse = Math.sin(time * 1.5 + p.pulse) * 0.3 + 0.7;
+      var dx = p.x - mouseX;
+      var dy = p.y - mouseY;
+      var dist = Math.sqrt(dx * dx + dy * dy);
+      var mouseFactor = dist < mouseRadius ? (1 - dist / mouseRadius) : 0;
+      var alpha = p.baseAlpha * pulse + mouseFactor * 0.5;
+      var r = p.r + mouseFactor * 2;
+
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(120, 160, 240, ' + Math.min(alpha, 1) + ')';
+      ctx.fill();
+
+      // Glow on nearby particles
+      if (mouseFactor > 0.2) {
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, r + 4, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(100, 140, 255, ' + mouseFactor * 0.12 + ')';
+        ctx.fill();
+      }
+    }
+
+    requestAnimationFrame(draw);
+  }
+
+  requestAnimationFrame(draw);
+})();
+</script>
+
+</body>
+</html>
