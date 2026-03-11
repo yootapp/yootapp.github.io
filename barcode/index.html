@@ -918,9 +918,9 @@ var popupOpen = false;
 var previewCache = {};
 var SETTINGS_KEY = 'barcodeSettings';
 var skipConfirm = false;
-var showValue = false;
+var showValue = true;
 var darkMode = false;
-var commaSeparator = false;
+var commaSeparator = true;
 var settingsPopupOpen = false;
 
 // Load persisted settings
@@ -928,9 +928,9 @@ try {
   var savedSettings = JSON.parse(localStorage.getItem(SETTINGS_KEY));
   if (savedSettings) {
     skipConfirm = !!savedSettings.skipConfirm;
-    showValue = !!savedSettings.showValue;
+    showValue = savedSettings.showValue !== undefined ? !!savedSettings.showValue : showValue;
     darkMode = !!savedSettings.darkMode;
-    commaSeparator = !!savedSettings.commaSeparator;
+    commaSeparator = savedSettings.commaSeparator !== undefined ? !!savedSettings.commaSeparator : commaSeparator;
   }
 } catch(e) {}
 
